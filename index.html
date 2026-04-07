@@ -64,7 +64,16 @@
     <div class="settings-panel">
         <h3>【本日の初期設定】</h3>
         <div class="settings-row">
-            <label>開始時間: <input type="time" id="startTime" value="05:30" onchange="update()"></label>
+            <label>開始時間（火入れ・山食・クロ）: <input type="time" id="startTime" value="05:30" onchange="update()"></label>
+        </div>
+        <div class="settings-row">
+            <label>薪窯の火入れ見込み: 
+                <select id="ovenFireTime" onchange="update()">
+                    <option value="240">休み明けなど（4時間）</option>
+                    <option value="210" selected>通常（3.5時間）</option>
+                    <option value="180">連日稼働など（3時間）</option>
+                </select>
+            </label>
         </div>
         <div class="settings-row">
             <label>クロワッサン前日生地状態: 
@@ -89,230 +98,163 @@
     </div>
 
     <script>
-        let audioCtx = null;
-        let alarmEnabled = false;
-
-        function initAudio() {
-            if (!audioCtx) {
-                const AudioContext = window.AudioContext || window.webkitAudioContext;
-                audioCtx = new AudioContext();
-            }
-            if (audioCtx.state === 'suspended') audioCtx.resume();
-        }
-
-        function toggleAlarm() {
-            initAudio(); 
-            alarmEnabled = !alarmEnabled;
-            const btn = document.getElementById('alarmBtn');
-            btn.innerText = alarmEnabled ? "🔊 アラーム ON" : "🔇 アラーム OFF";
-            btn.classList.toggle("active", alarmEnabled);
-            if (alarmEnabled) playBeep();
-        }
-
-        function playBeep() {
-            if (!alarmEnabled || !audioCtx) return;
-            for (let i = 0; i < 3; i++) {
-                const osc = audioCtx.createOscillator();
-                const gain = audioCtx.createGain();
-                osc.type = "sine"; 
-                osc.frequency.setValueAtTime(880, audioCtx.currentTime + i * 0.2); 
-                gain.gain.setValueAtTime(0.5, audioCtx.currentTime + i * 0.2);
-                gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + i * 0.2 + 0.1);
-                osc.connect(gain);
-                gain.connect(audioCtx.destination);
-                osc.start(audioCtx.currentTime + i * 0.2);
-                osc.stop(audioCtx.currentTime + i * 0.2 + 0.1);
-            }
-        }
-
-        // --- ★バグ修正：スクロール先の判定を賢くしました ---
-        function scrollToCurrent() {
-            const now = new Date().getTime();
-            const cards = Array.from(document.querySelectorAll('.task-card'));
-            
-            // 現在進行中のタスクを全て抽出
-            let activeCards = cards.filter(card => {
-                return now >= parseInt(card.dataset.start) && now < parseInt(card.dataset.end);
-            });
-
-            if (activeCards.length > 0) {
-                // 最も最近（一番遅く）始まったタスクをターゲットにする
-                activeCards.sort((a, b) => parseInt(b.dataset.start) - parseInt(a.dataset.start));
-                activeCards[0].scrollIntoView({ behavior: 'smooth', block: 'center' });
-            } else {
-                // 進行中がない場合は、一番近い未来のタスクへ
-                let nextCard = document.querySelector('.status-next');
-                if (nextCard) nextCard.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
-        }
-
+        let audioCtx = null; let alarmEnabled = false;
+        function initAudio() { if (!audioCtx) { const AudioContext = window.AudioContext || window.webkitAudioContext; audioCtx = new AudioContext(); } if (audioCtx.state === 'suspended') audioCtx.resume(); }
+        function toggleAlarm() { initAudio(); alarmEnabled = !alarmEnabled; const btn = document.getElementById('alarmBtn'); btn.innerText = alarmEnabled ? "🔊 アラーム ON" : "🔇 アラーム OFF"; btn.classList.toggle("active", alarmEnabled); if (alarmEnabled) playBeep(); }
+        function playBeep() { if (!alarmEnabled || !audioCtx) return; for (let i = 0; i < 3; i++) { const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.type = "sine"; osc.frequency.setValueAtTime(880, audioCtx.currentTime + i * 0.2); gain.gain.setValueAtTime(0.5, audioCtx.currentTime + i * 0.2); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + i * 0.2 + 0.1); osc.connect(gain); gain.connect(audioCtx.destination); osc.start(audioCtx.currentTime + i * 0.2); osc.stop(audioCtx.currentTime + i * 0.2 + 0.1); } }
+        function scrollToCurrent() { const now = new Date().getTime(); const cards = Array.from(document.querySelectorAll('.task-card')); let activeCards = cards.filter(card => now >= parseInt(card.dataset.start) && now < parseInt(card.dataset.end)); if (activeCards.length > 0) { activeCards.sort((a, b) => parseInt(b.dataset.start) - parseInt(a.dataset.start)); activeCards[0].scrollIntoView({ behavior: 'smooth', block: 'center' }); } else { let nextCard = document.querySelector('.status-next'); if (nextCard) nextCard.scrollIntoView({ behavior: 'smooth', block: 'center' }); } }
         let previousCurrentTaskId = null; 
-
-        function updateStatus() {
-            const now = new Date().getTime();
-            const cards = Array.from(document.querySelectorAll('.task-card'));
-            
-            let activeCards = [];
-            let nextCards = [];
-
-            cards.forEach(card => {
-                const start = parseInt(card.dataset.start);
-                const end = parseInt(card.dataset.end);
-                const badgeArea = card.querySelector('.status-badge-area');
-
-                card.classList.remove('status-past', 'status-current', 'status-next');
-                badgeArea.innerHTML = '';
-
-                if (now >= end) {
-                    card.classList.add('status-past');
-                } else if (now >= start && now < end) {
-                    card.classList.add('status-current');
-                    badgeArea.innerHTML = '<span class="badge-current">🟢 今ココ</span>';
-                    activeCards.push(card);
-                } else {
-                    nextCards.push(card);
-                }
-            });
-
-            let currentPrimaryTaskId = null;
-
-            if (activeCards.length > 0) {
-                // 複数「今ココ」がある場合、一番最近始まったものを主役として音の判定に使う
-                activeCards.sort((a, b) => parseInt(b.dataset.start) - parseInt(a.dataset.start));
-                currentPrimaryTaskId = activeCards[0].dataset.id;
-            } else if (nextCards.length > 0) {
-                nextCards.sort((a, b) => parseInt(a.dataset.start) - parseInt(b.dataset.start));
-                let nextStart = parseInt(nextCards[0].dataset.start);
-                nextCards.forEach(card => {
-                    if (parseInt(card.dataset.start) === nextStart) {
-                        card.classList.add('status-next');
-                        card.querySelector('.status-badge-area').innerHTML = '<span class="badge-next">👉 次はコレ</span>';
-                        if (!currentPrimaryTaskId) currentPrimaryTaskId = card.dataset.id;
-                    }
-                });
-            }
-
-            // 新しいタスクに切り替わった時だけ音を鳴らしてスクロール
-            if (currentPrimaryTaskId !== null && currentPrimaryTaskId !== previousCurrentTaskId) {
-                if (previousCurrentTaskId !== null) playBeep();
-                previousCurrentTaskId = currentPrimaryTaskId;
-                scrollToCurrent();
-            }
-        }
-
-        function updateClock() {
-            const now = new Date();
-            const h = now.getHours().toString().padStart(2, '0');
-            const m = now.getMinutes().toString().padStart(2, '0');
-            const s = now.getSeconds().toString().padStart(2, '0');
-            document.getElementById('realTimeClock').innerText = `${h}:${m}:${s}`;
-            updateStatus();
-        }
+        function updateStatus() { const now = new Date().getTime(); const cards = Array.from(document.querySelectorAll('.task-card')); let activeCards = []; let nextCards = []; cards.forEach(card => { const start = parseInt(card.dataset.start); const end = parseInt(card.dataset.end); const badgeArea = card.querySelector('.status-badge-area'); card.classList.remove('status-past', 'status-current', 'status-next'); badgeArea.innerHTML = ''; if (now >= end) { card.classList.add('status-past'); } else if (now >= start && now < end) { card.classList.add('status-current'); badgeArea.innerHTML = '<span class="badge-current">🟢 今ココ</span>'; activeCards.push(card); } else { nextCards.push(card); } }); let currentPrimaryTaskId = null; if (activeCards.length > 0) { activeCards.sort((a, b) => parseInt(b.dataset.start) - parseInt(a.dataset.start)); currentPrimaryTaskId = activeCards[0].dataset.id; } else if (nextCards.length > 0) { nextCards.sort((a, b) => parseInt(a.dataset.start) - parseInt(b.dataset.start)); let nextStart = parseInt(nextCards[0].dataset.start); nextCards.forEach(card => { if (parseInt(card.dataset.start) === nextStart) { card.classList.add('status-next'); card.querySelector('.status-badge-area').innerHTML = '<span class="badge-next">👉 次はコレ</span>'; if (!currentPrimaryTaskId) currentPrimaryTaskId = card.dataset.id; } }); } if (currentPrimaryTaskId !== null && currentPrimaryTaskId !== previousCurrentTaskId) { if (previousCurrentTaskId !== null) playBeep(); previousCurrentTaskId = currentPrimaryTaskId; scrollToCurrent(); } }
+        function updateClock() { const now = new Date(); const h = now.getHours().toString().padStart(2, '0'); const m = now.getMinutes().toString().padStart(2, '0'); const s = now.getSeconds().toString().padStart(2, '0'); document.getElementById('realTimeClock').innerText = `${h}:${m}:${s}`; updateStatus(); }
         setInterval(updateClock, 1000);
-
-        let delays = {};
-        function getDelay(id) { return delays[id] || 0; }
-        function adjustDelay(id, amount) { delays[id] = getDelay(id) + amount; update(); }
-        function resetAll() { delays = {}; update(); }
+        let delays = {}; function getDelay(id) { return delays[id] || 0; } function adjustDelay(id, amount) { delays[id] = getDelay(id) + amount; update(); } function resetAll() { delays = {}; update(); }
 
         function update() {
             const startStr = document.getElementById("startTime").value;
             const [h, m] = startStr.split(':').map(Number);
-            let startDt = new Date();
-            startDt.setHours(h, m, 0, 0);
+            let startDt = new Date(); startDt.setHours(h, m, 0, 0);
 
-            let idealOvenReadyDt = new Date(startDt.getTime() + 240 * 60000); 
             let croFermentTime = parseInt(document.getElementById("croissantState").value);
+            let ovenFireDuration = parseInt(document.getElementById("ovenFireTime").value);
             let calculatedTasks = [];
 
-            function processTimeline(timeline) {
+            function computePrep(timeline) {
                 let currentTime = new Date(timeline.startTime);
+                let tasks = [];
                 timeline.tasks.forEach(def => {
                     let taskStart = new Date(currentTime);
-                    if (def.waitBatchOven && taskStart.getTime() < idealOvenReadyDt.getTime()) {
-                        taskStart = new Date(idealOvenReadyDt);
-                    }
                     let taskEnd = new Date(taskStart.getTime() + (def.duration + getDelay(def.id)) * 60000);
-                    calculatedTasks.push({
-                        ...def, actualStartTime: taskStart, actualEndTime: taskEnd, delayAmount: getDelay(def.id)
-                    });
+                    tasks.push({ ...def, actualStartTime: taskStart, actualEndTime: taskEnd, delayAmount: getDelay(def.id) });
                     currentTime = taskEnd;
                 });
-                return currentTime; 
+                return { readyTime: currentTime, tasks: tasks };
             }
 
-            processTimeline({ startTime: startDt, tasks: [{ id: "kama_fire", group: "窯", name: "火入れ・ダンパー調整", duration: 210 }] });
-            
-            processTimeline({ 
-                startTime: new Date(startDt.getTime() + 60 * 60000), 
+            // ==========================================
+            // 【窯の火入れ】 (全ての基準：startDtからスタート)
+            // ==========================================
+            let kamaFireEnd = new Date(startDt.getTime() + (ovenFireDuration + getDelay("kama_fire")) * 60000);
+            calculatedTasks.push({ id: "kama_fire", group: "窯", name: "火入れ・ダンパー調整", duration: ovenFireDuration, actualStartTime: startDt, actualEndTime: kamaFireEnd, delayAmount: getDelay("kama_fire") });
+
+
+            // ==========================================
+            // 【1陣】バゲット (窯の準備完了から逆算)
+            // ==========================================
+            // バゲット準備時間の合計： 45 + 35 + 10 + 45 = 135分
+            let bagPrepDuration = 135; 
+            let bagBaseStart = new Date(kamaFireEnd.getTime() - bagPrepDuration * 60000);
+
+            let bagPrep = computePrep({ 
+                startTime: bagBaseStart, 
                 tasks: [ 
-                    { id: "bag_27", group: "バ", name: "バ 27℃へ", duration: 45 }, 
+                    { id: "bag_27", group: "バ", name: "バ 27℃へ", duration: 45, isReverseTarget: true, memo: "※窯の準備完了から逆算" }, 
                     { id: "bag_div", group: "バ", name: "バ 分割", duration: 35 }, 
-                    { id: "bag_ferm", group: "バ", name: "バ 成形完了（二次発酵 45分）", duration: 45 }, 
-                    { id: "bag_bake", group: "バ", name: "🔥 バゲット 焼成開始", duration: 30, isBake: true } 
+                    { id: "bag_shape", group: "バ", name: "バ 成形 (10分)", duration: 10 }, 
+                    { id: "bag_ferm", group: "バ", name: "バ 成形完了（二次発酵 45分）", duration: 45 }
                 ] 
             });
+            calculatedTasks.push(...bagPrep.tasks);
 
-            let bagBakeTask = calculatedTasks.find(t => t.id === "bag_bake");
-            let sconeStartTime = new Date(bagBakeTask.actualStartTime.getTime() + 5 * 60000);
+            let batch1_Target = new Date(Math.max(kamaFireEnd.getTime(), bagPrep.readyTime.getTime()));
+            let batch1_Start = new Date(batch1_Target.getTime() + getDelay("bag_bake") * 60000);
+            calculatedTasks.push({ id: "bag_bake", group: "バ", name: "🔥 バゲット 焼成開始 (1陣)", duration: 30, isBake: true, actualStartTime: batch1_Start, actualEndTime: new Date(batch1_Start.getTime() + 30 * 60000), delayAmount: getDelay("bag_bake") });
 
-            processTimeline({
-                startTime: sconeStartTime,
-                tasks: [
-                    { id: "scone_prep", group: "スコーン", name: "スコーン仕込み (2つ)", duration: 80, memo: "バゲット窯入れ（焼成開始）5分後に開始" }
-                ]
+
+            // ==========================================
+            // 【2陣】クロワッサン、ルヴァン、コンプレ
+            // ==========================================
+            let batch2_Target = new Date(batch1_Start.getTime() + 30 * 60000);
+
+            let conBaseStart = new Date(batch2_Target.getTime() - 125 * 60000);
+            let conPrep = computePrep({ 
+                startTime: conBaseStart, 
+                tasks: [ 
+                    { id: "con_27", group: "コン", name: "コン 27℃へ", duration: 30, isReverseTarget: true, memo: "※2陣から逆算" }, 
+                    { id: "con_div", group: "コン", name: "コン 分割", duration: 40 }, 
+                    { id: "con_shape", group: "コン", name: "コン 成形 (10分)", duration: 10 }, 
+                    { id: "con_ferm", group: "コン", name: "コン 成形完了（二次発酵 45分）", duration: 45 } 
+                ] 
             });
+            calculatedTasks.push(...conPrep.tasks);
 
-            processTimeline({ startTime: startDt, tasks: [ { id: "yama_27", group: "山食", name: "山 27℃へ", duration: 60 }, { id: "yama_div", group: "山食", name: "山 分割", duration: 30 }, { id: "yama_ferm", group: "山食", name: "山 成形完了（二次発酵 150分）", duration: 150 }, { id: "yama_bake", group: "山食", name: "🔥 山食 焼成開始", duration: 30, isBake: true, waitBatchOven: true } ] });
-            processTimeline({ startTime: new Date(startDt.getTime() + 120 * 60000), tasks: [ { id: "con_27", group: "コン", name: "コン 27℃へ", duration: 30 }, { id: "con_div", group: "コン", name: "コン 分割", duration: 40 }, { id: "con_ferm", group: "コン", name: "コン 成形完了（二次発酵 45分）", duration: 45 }, { id: "con_bake", group: "コン", name: "🔥 コン 焼成開始", duration: 30, isBake: true, waitBatchOven: true } ] });
-            processTimeline({ startTime: new Date(startDt.getTime() + 170 * 60000), tasks: [ { id: "lu_27", group: "ル", name: "ル 27℃へ（復温 60分）", duration: 60 }, { id: "lu_bake", group: "ル", name: "🔥 ル 焼成開始", duration: 30, isBake: true, waitBatchOven: true } ] });
+            let luBaseStart = new Date(batch2_Target.getTime() - 60 * 60000);
+            let luPrep = computePrep({ 
+                startTime: luBaseStart, 
+                tasks: [ { id: "lu_27", group: "ル", name: "ル 27℃へ（復温 60分）", duration: 60, isReverseTarget: true, memo: "※2陣から逆算" } ] 
+            });
+            calculatedTasks.push(...luPrep.tasks);
 
-            let cro1End = processTimeline({ startTime: startDt, tasks: [ { id: "cro_1", group: "クロ", name: "クロ 1回目", duration: 50 }, { id: "cro_4c", group: "クロ", name: "クロ 4℃へ", duration: 10 }, { id: "cro_2", group: "クロ", name: "クロ 2回目完了", duration: 60 } ] });
-            
+            // クロワッサン前半は開始時間（startDt）に固定
+            let cro1Prep = computePrep({ startTime: startDt, tasks: [ { id: "cro_1", group: "クロ", name: "クロ 1回目", duration: 50 }, { id: "cro_4c", group: "クロ", name: "クロ 4℃へ", duration: 10 }, { id: "cro_2", group: "クロ", name: "クロ 2回目完了", duration: 60 } ] });
+            calculatedTasks.push(...cro1Prep.tasks);
+
             let croCutDuration = 20; let croShapeDuration = 10;
-            let cro2Start = new Date(idealOvenReadyDt.getTime() - (croFermentTime + croShapeDuration + croCutDuration) * 60000);
-            let restTime = (cro2Start.getTime() - cro1End.getTime()) / 60000;
-            let memoStr = restTime < 0 ? `<span class="alert">⚠️2回目完了前に「切る」時間が来ています</span>` : `(冷蔵庫休ませ時間: ${restTime}分)`;
+            let croBaseStart = new Date(batch2_Target.getTime() - (croFermentTime + croShapeDuration + croCutDuration) * 60000);
+            let croRestTime = (croBaseStart.getTime() - cro1Prep.readyTime.getTime()) / 60000;
+            let croMemoStr = croRestTime < 0 ? `<span class="alert">⚠️2回目完了前に「切る」時間が来ています</span>` : `(冷蔵庫休ませ: ${croRestTime}分)`;
 
-            processTimeline({ startTime: cro2Start, tasks: [ { id: "cro_cut", group: "クロ", name: "クロ 生地を切る", duration: croCutDuration, memo: memoStr, isReverseTarget: true }, { id: "cro_shape", group: "クロ", name: "クロ 成形", duration: croShapeDuration, isReverseTarget: true }, { id: "cro_ferm", group: "クロ", name: `クロ ホイロ入る（二次発酵 ${croFermentTime}分）`, duration: croFermentTime, isReverseTarget: true }, { id: "cro_bake", group: "クロ", name: "🔥 クロ 焼成開始", duration: 30, isBake: true, waitBatchOven: true } ] });
+            let cro2Prep = computePrep({ startTime: croBaseStart, tasks: [ { id: "cro_cut", group: "クロ", name: "クロ 生地を切る", duration: croCutDuration, memo: croMemoStr, isReverseTarget: true }, { id: "cro_shape", group: "クロ", name: "クロ 成形", duration: croShapeDuration }, { id: "cro_ferm", group: "クロ", name: `クロ ホイロ入る (${croFermentTime}分)`, duration: croFermentTime } ] });
+            calculatedTasks.push(...cro2Prep.tasks);
 
-            calculatedTasks.sort((a, b) => a.actualStartTime - b.actualStartTime);
+            let batch2_Ready = new Date(Math.max(batch2_Target.getTime(), conPrep.readyTime.getTime(), luPrep.readyTime.getTime(), cro2Prep.readyTime.getTime()));
+            let batch2_Delay = Math.max(getDelay("con_bake"), getDelay("lu_bake"), getDelay("cro_bake"));
+            let batch2_Start = new Date(batch2_Ready.getTime() + batch2_Delay * 60000);
+
+            calculatedTasks.push({ id: "con_bake", group: "コン", name: "🔥 コン 焼成開始 (2陣)", duration: 30, isBake: true, actualStartTime: batch2_Start, actualEndTime: new Date(batch2_Start.getTime() + 30 * 60000), delayAmount: getDelay("con_bake") });
+            calculatedTasks.push({ id: "lu_bake", group: "ル", name: "🔥 ル 焼成開始 (2陣)", duration: 30, isBake: true, actualStartTime: batch2_Start, actualEndTime: new Date(batch2_Start.getTime() + 30 * 60000), delayAmount: getDelay("lu_bake") });
+            calculatedTasks.push({ id: "cro_bake", group: "クロ", name: "🔥 クロ 焼成開始 (2陣)", duration: 30, isBake: true, actualStartTime: batch2_Start, actualEndTime: new Date(batch2_Start.getTime() + 30 * 60000), delayAmount: getDelay("cro_bake") });
+
+
+            // ==========================================
+            // 【3陣】山食、スコーン
+            // ==========================================
+            let batch3_Target = new Date(batch2_Start.getTime() + 30 * 60000);
+
+            // 山食は開始時間（startDt）に固定し、二次発酵時間で調整
+            let yama27_duration = 60;
+            let yamaDiv_duration = 30;
+            let yamaDivEndTime = new Date(startDt.getTime() + (yama27_duration + getDelay("yama_27") + yamaDiv_duration + getDelay("yama_div")) * 60000);
             
-            const area = document.getElementById("displayArea");
-            area.innerHTML = "";
-            calculatedTasks.forEach(t => {
-                const div = document.createElement("div");
-                div.className = "task-card" + (t.isBake ? " highlight" : "");
-                div.dataset.id = t.id; div.dataset.start = t.actualStartTime.getTime(); div.dataset.end = t.actualEndTime.getTime();
+            // 3陣の予定時間から、二次発酵に必要な待ち時間を自動計算
+            let yamaFerm_duration = Math.round((batch3_Target.getTime() - yamaDivEndTime.getTime()) / 60000);
+            if(yamaFerm_duration < 0) yamaFerm_duration = 0;
 
-                const timeStr = t.actualStartTime.getHours().toString().padStart(2, '0') + ":" + 
-                                t.actualStartTime.getMinutes().toString().padStart(2, '0');
-                
-                const reverseBadge = t.isReverseTarget ? `<span class="reverse-tag">逆算スタート</span>` : '';
-                const delayStr = t.delayAmount !== 0 ? `<span class="delay-info">${t.delayAmount > 0 ? '+' : ''}${t.delayAmount}分</span>` : '';
-
-                div.innerHTML = `
-                    <div class="time">${timeStr}</div>
-                    <div class="status-badge-area"></div>
-                    <div class="group-tag tag-${t.group}">${t.group}</div>
-                    <div class="name">
-                        ${t.name} ${reverseBadge} ${delayStr}
-                        ${t.memo ? `<span class="memo">${t.memo}</span>` : ''}
-                    </div>
-                    <div class="controls">
-                        <button onclick="adjustDelay('${t.id}', 5)">+5</button>
-                        <button onclick="adjustDelay('${t.id}', -5)">-5</button>
-                    </div>
-                `;
-                area.appendChild(div);
+            let yamaPrep = computePrep({ 
+                startTime: startDt, 
+                tasks: [ 
+                    { id: "yama_27", group: "山食", name: "山 27℃へ", duration: yama27_duration, memo: "※火入れと同時に開始" }, 
+                    // ★テキスト修正：分割・丸めに変更
+                    { id: "yama_div", group: "山食", name: "山 分割・丸め", duration: yamaDiv_duration }, 
+                    { id: "yama_ferm", group: "山食", name: `山 成形完了（二次発酵 約${yamaFerm_duration}分）`, duration: yamaFerm_duration, memo: "※3陣の窯入れまで待機" } 
+                ] 
             });
+            calculatedTasks.push(...yamaPrep.tasks);
 
-            updateStatus();
-            setTimeout(scrollToCurrent, 100); 
+            let sconePrep = computePrep({
+                startTime: new Date(batch1_Start.getTime() + 5 * 60000),
+                tasks: [ { id: "scone_prep", group: "スコーン", name: "スコーン仕込み (2つ)", duration: 15 } ]
+            });
+            calculatedTasks.push(...sconePrep.tasks);
+
+            let batch3_Ready = new Date(Math.max(batch3_Target.getTime(), yamaPrep.readyTime.getTime(), sconePrep.readyTime.getTime()));
+            let batch3_Delay = Math.max(getDelay("yama_bake"), getDelay("scone_bake"));
+            let batch3_Start = new Date(batch3_Ready.getTime() + batch3_Delay * 60000);
+
+            calculatedTasks.push({ id: "yama_bake", group: "山食", name: "🔥 山食 焼成開始 (3陣)", duration: 30, isBake: true, actualStartTime: batch3_Start, actualEndTime: new Date(batch3_Start.getTime() + 30 * 60000), delayAmount: getDelay("yama_bake") });
+            calculatedTasks.push({ id: "scone_bake", group: "スコーン", name: "🔥 スコーン 焼成開始 (3陣)", duration: 30, isBake: true, actualStartTime: batch3_Start, actualEndTime: new Date(batch3_Start.getTime() + 30 * 60000), delayAmount: getDelay("scone_bake") });
+
+            // 描画処理
+            calculatedTasks.sort((a, b) => a.actualStartTime - b.actualStartTime);
+            const area = document.getElementById("displayArea"); area.innerHTML = "";
+            calculatedTasks.forEach(t => {
+                const div = document.createElement("div"); div.className = "task-card" + (t.isBake ? " highlight" : ""); div.dataset.id = t.id; div.dataset.start = t.actualStartTime.getTime(); div.dataset.end = t.actualEndTime.getTime();
+                const timeStr = t.actualStartTime.getHours().toString().padStart(2, '0') + ":" + t.actualStartTime.getMinutes().toString().padStart(2, '0');
+                const reverseBadge = t.isReverseTarget ? `<span class="reverse-tag">逆算</span>` : ''; const delayStr = t.delayAmount !== 0 ? `<span class="delay-info">${t.delayAmount > 0 ? '+' : ''}${t.delayAmount}分</span>` : '';
+                div.innerHTML = `<div class="time">${timeStr}</div><div class="status-badge-area"></div><div class="group-tag tag-${t.group}">${t.group}</div><div class="name">${t.name} ${reverseBadge} ${delayStr}${t.memo ? `<span class="memo">${t.memo}</span>` : ''}</div><div class="controls"><button onclick="adjustDelay('${t.id}', 5)">+5</button><button onclick="adjustDelay('${t.id}', -5)">-5</button></div>`; area.appendChild(div);
+            });
+            updateStatus(); setTimeout(scrollToCurrent, 100); 
         }
-
-        updateClock();
-        update();
+        updateClock(); update();
     </script>
 </body>
 </html>
