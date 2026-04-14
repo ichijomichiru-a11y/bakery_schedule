@@ -1,290 +1,805 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="ja">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
+    />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta
+      name="apple-mobile-web-app-status-bar-style"
+      content="black-translucent"
+    />
     <title>パン屋スケジュール</title>
     <style>
-        body { font-family: 'Helvetica Neue', Arial, sans-serif; padding: 15px; max-width: 100%; margin: auto; background: #fdfaf4; padding-bottom: 150px; font-size: 1.05em; touch-action: manipulation;}
-        
-        .bottom-dock {
-            position: fixed; bottom: 0; left: 0; width: 100%;
-            background: rgba(253, 250, 244, 0.95); border-top: 2px solid #e0d0b0;
-            padding: 15px 10px; display: flex; justify-content: space-around;
-            align-items: center; box-shadow: 0 -4px 10px rgba(0,0,0,0.08);
-            z-index: 1000; box-sizing: border-box;
-            padding-bottom: calc(15px + env(safe-area-inset-bottom));
-        }
+      body {
+        font-family: "Helvetica Neue", Arial, sans-serif;
+        padding: 15px;
+        max-width: 100%;
+        margin: auto;
+        background: #fdfaf4;
+        padding-bottom: 150px;
+        font-size: 1.05em;
+        touch-action: manipulation;
+      }
 
-        .floating-clock { background: #5d4037; color: #fff; padding: 12px 20px; font-size: 1.5em; font-weight: bold; border-radius: 30px; letter-spacing: 2px; white-space: nowrap;}
-        .floating-btn { background: #4CAF50; color: #fff; padding: 12px 20px; font-size: 1.1em; font-weight: bold; border: none; border-radius: 30px; cursor: pointer; transition: transform 0.1s; white-space: nowrap;}
-        .floating-btn:active { transform: scale(0.95); background: #388E3C; }
-        .alarm-btn { background: #9e9e9e; }
-        .alarm-btn.active { background: #ff9800; }
+      .bottom-dock {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        width: 100%;
+        background: rgba(253, 250, 244, 0.95);
+        border-top: 2px solid #e0d0b0;
+        padding: 15px 10px;
+        display: flex;
+        justify-content: space-around;
+        align-items: center;
+        box-shadow: 0 -4px 10px rgba(0, 0, 0, 0.08);
+        z-index: 1000;
+        box-sizing: border-box;
+        padding-bottom: calc(15px + env(safe-area-inset-bottom));
+      }
 
-        .settings-panel { background: #fff; border: 2px solid #e0d0b0; border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
-        .settings-panel h3 { margin-top: 0; color: #5d4037; font-size: 1.2em; border-bottom: 1px solid #eee; padding-bottom: 8px;}
-        .settings-row { margin-bottom: 15px; display: flex; align-items: center; flex-wrap: wrap; gap: 10px;}
-        select, input[type="time"] { padding: 10px; font-size: 1.1em; border: 1px solid #ccc; border-radius: 4px; }
-        
-        .task-card { margin-bottom: 10px; padding: 15px; background: #fff; border: 2px solid #e0d0b0; border-radius: 8px; display: flex; align-items: center; box-shadow: 0 2px 4px rgba(0,0,0,0.05); transition: all 0.5s ease; scroll-margin-top: 100px; }
-        
-        .status-past { opacity: 0.5; background-color: #f5f5f5; border-color: #ddd; }
-        .status-current { border-color: #4CAF50; background-color: #f1f8e9; box-shadow: 0 4px 12px rgba(76, 175, 80, 0.25); transform: scale(1.01); z-index: 10; position: relative;}
-        .status-next { border-color: #2196F3; background-color: #e3f2fd; }
-        
-        .status-badge-area { width: 95px; font-size: 0.9em; font-weight: bold; }
-        .badge-current { color: #2e7d32; background: #c8e6c9; padding: 4px 8px; border-radius: 4px; border: 1px solid #a5d6a7;}
-        .badge-next { color: #1565c0; background: #bbdefb; padding: 4px 8px; border-radius: 4px; border: 1px solid #90caf9;}
+      .floating-clock {
+        background: #5d4037;
+        color: #fff;
+        padding: 12px 20px;
+        font-size: 1.5em;
+        font-weight: bold;
+        border-radius: 30px;
+        letter-spacing: 2px;
+        white-space: nowrap;
+      }
+      .floating-btn {
+        background: #4caf50;
+        color: #fff;
+        padding: 12px 20px;
+        font-size: 1.1em;
+        font-weight: bold;
+        border: none;
+        border-radius: 30px;
+        cursor: pointer;
+        transition: transform 0.1s;
+        white-space: nowrap;
+      }
+      .floating-btn:active {
+        transform: scale(0.95);
+        background: #388e3c;
+      }
+      .alarm-btn {
+        background: #9e9e9e;
+      }
+      .alarm-btn.active {
+        background: #ff9800;
+      }
 
-        .group-tag { padding: 6px 10px; border-radius: 4px; font-size: 0.9em; margin-right: 12px; color: #fff; font-weight: bold; min-width: 65px; text-align: center; }
-        .tag-窯 { background-color: #dc3545; } .tag-山食 { background-color: #d4a373; } .tag-クロ { background-color: #f4a261; }
-        .tag-バ { background-color: #e76f51; } .tag-コン { background-color: #8b5a2b; } .tag-ル { background-color: #a98467; }
-        .tag-スコーン { background-color: #ffb703; color: #333;} 
+      .settings-panel {
+        background: #fff;
+        border: 2px solid #e0d0b0;
+        border-radius: 8px;
+        padding: 20px;
+        margin-bottom: 20px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+      }
+      .settings-panel h3 {
+        margin-top: 0;
+        color: #5d4037;
+        font-size: 1.2em;
+        border-bottom: 1px solid #eee;
+        padding-bottom: 8px;
+      }
+      .settings-row {
+        margin-bottom: 15px;
+        display: flex;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 10px;
+      }
+      select,
+      input[type="time"] {
+        padding: 10px;
+        font-size: 1.1em;
+        border: 1px solid #ccc;
+        border-radius: 4px;
+      }
 
-        .time { font-size: 1.3em; font-weight: bold; color: #5d4037; width: 70px; flex-shrink: 0;}
-        .name { flex-grow: 1; color: #333; line-height: 1.4; font-weight: 500;}
-        .memo { font-size: 0.85em; color: #888; display: block; margin-top: 4px; font-weight: normal;}
-        
-        .controls { display: flex; flex-wrap: nowrap; flex-shrink: 0;}
-        .controls button { padding: 10px 15px; font-size: 1.1em; cursor: pointer; border: 1px solid #ccc; background: #f9f9f9; border-radius: 6px; margin-left: 5px;}
-        
-        .delay-info { color: #d32f2f; font-weight: bold; font-size: 0.9em; margin-left: 8px; background: #ffebee; padding: 3px 6px; border-radius: 4px;}
-        .highlight { border-left: 8px solid #e53935; }
-        .reverse-tag { background: #e3f2fd; color: #1976d2; font-size: 0.8em; padding: 3px 6px; border-radius: 3px; margin-left: 5px; border: 1px solid #bbdefb;}
-        .reset-btn { background-color: #fff3cd; border: 1px solid #ffe69c; color: #664d03; padding: 12px 18px; font-size: 1.1em; border-radius: 6px; cursor: pointer; font-weight: bold;}
+      .task-card {
+        margin-bottom: 10px;
+        padding: 15px;
+        background: #fff;
+        border: 2px solid #e0d0b0;
+        border-radius: 8px;
+        display: flex;
+        align-items: center;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        transition: all 0.5s ease;
+        scroll-margin-top: 100px;
+      }
+
+      .status-past {
+        opacity: 0.5;
+        background-color: #f5f5f5;
+        border-color: #ddd;
+      }
+      .status-current {
+        border-color: #4caf50;
+        background-color: #f1f8e9;
+        box-shadow: 0 4px 12px rgba(76, 175, 80, 0.25);
+        transform: scale(1.01);
+        z-index: 10;
+        position: relative;
+      }
+      .status-next {
+        border-color: #2196f3;
+        background-color: #e3f2fd;
+      }
+
+      .status-badge-area {
+        width: 95px;
+        font-size: 0.9em;
+        font-weight: bold;
+      }
+      .badge-current {
+        color: #2e7d32;
+        background: #c8e6c9;
+        padding: 4px 8px;
+        border-radius: 4px;
+        border: 1px solid #a5d6a7;
+      }
+      .badge-next {
+        color: #1565c0;
+        background: #bbdefb;
+        padding: 4px 8px;
+        border-radius: 4px;
+        border: 1px solid #90caf9;
+      }
+
+      .group-tag {
+        padding: 6px 10px;
+        border-radius: 4px;
+        font-size: 0.9em;
+        margin-right: 12px;
+        color: #fff;
+        font-weight: bold;
+        min-width: 65px;
+        text-align: center;
+      }
+      .tag-窯 {
+        background-color: #dc3545;
+      }
+      .tag-山食 {
+        background-color: #d4a373;
+      }
+      .tag-クロ {
+        background-color: #f4a261;
+      }
+      .tag-バ {
+        background-color: #e76f51;
+      }
+      .tag-コン {
+        background-color: #8b5a2b;
+      }
+      .tag-ル {
+        background-color: #a98467;
+      }
+      .tag-スコーン {
+        background-color: #ffb703;
+        color: #333;
+      }
+
+      .time {
+        font-size: 1.3em;
+        font-weight: bold;
+        color: #5d4037;
+        width: 70px;
+        flex-shrink: 0;
+      }
+      .name {
+        flex-grow: 1;
+        color: #333;
+        line-height: 1.4;
+        font-weight: 500;
+      }
+      .memo {
+        font-size: 0.85em;
+        color: #888;
+        display: block;
+        margin-top: 4px;
+        font-weight: normal;
+      }
+
+      .controls {
+        display: flex;
+        flex-wrap: nowrap;
+        flex-shrink: 0;
+      }
+      .controls button {
+        padding: 10px 15px;
+        font-size: 1.1em;
+        cursor: pointer;
+        border: 1px solid #ccc;
+        background: #f9f9f9;
+        border-radius: 6px;
+        margin-left: 5px;
+      }
+
+      .delay-info {
+        color: #d32f2f;
+        font-weight: bold;
+        font-size: 0.9em;
+        margin-left: 8px;
+        background: #ffebee;
+        padding: 3px 6px;
+        border-radius: 4px;
+      }
+      .highlight {
+        border-left: 8px solid #e53935;
+      }
+      .reverse-tag {
+        background: #e3f2fd;
+        color: #1976d2;
+        font-size: 0.8em;
+        padding: 3px 6px;
+        border-radius: 3px;
+        margin-left: 5px;
+        border: 1px solid #bbdefb;
+      }
+      .reset-btn {
+        background-color: #fff3cd;
+        border: 1px solid #ffe69c;
+        color: #664d03;
+        padding: 12px 18px;
+        font-size: 1.1em;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: bold;
+      }
     </style>
-</head>
-<body>
-
+  </head>
+  <body>
     <h2>bakery スケジュール</h2>
-    
+
     <div class="settings-panel">
-        <h3>【本日の初期設定】</h3>
-        <div class="settings-row">
-            <label>開始時間（火入れ・山食・クロ）: <input type="time" id="startTime" value="05:30" onchange="update()"></label>
-        </div>
-        <div class="settings-row">
-            <label>薪窯の火入れ見込み: 
-                <select id="ovenFireTime" onchange="update()">
-                    <option value="240">休み明けなど（4時間）</option>
-                    <option value="210" selected>通常（3.5時間）</option>
-                    <option value="180">連日稼働など（3時間）</option>
-                </select>
-            </label>
-        </div>
-        <div class="settings-row">
-            <label>クロワッサン前日生地状態: 
-                <select id="croissantState" onchange="update()">
-                    <option value="75">普通（二次発酵 75分）</option>
-                    <option value="60">進んでいる（二次発酵 60分）</option>
-                    <option value="90">進んでいない（二次発酵 90分）</option>
-                </select>
-            </label>
-        </div>
-        <div class="settings-row" style="margin-top: 15px;">
-            <button class="reset-btn" onclick="resetAll()">途中の遅れ(+/-)をすべてリセット</button>
-        </div>
+      <h3>【本日の初期設定】</h3>
+      <div class="settings-row">
+        <label
+          >開始時間（火入れ・山食・クロ）:
+          <input type="time" id="startTime" value="05:30" onchange="update()"
+        /></label>
+      </div>
+      <div class="settings-row">
+        <label
+          >薪窯の火入れ見込み:
+          <select id="ovenFireTime" onchange="update()">
+            <option value="240">休み明けなど（4時間）</option>
+            <option value="210" selected>通常（3.5時間）</option>
+            <option value="180">連日稼働など（3時間）</option>
+          </select>
+        </label>
+      </div>
+      <div class="settings-row">
+        <label
+          >クロワッサン前日生地状態:
+          <select id="croissantState" onchange="update()">
+            <option value="75">普通（二次発酵 75分）</option>
+            <option value="60">進んでいる（二次発酵 60分）</option>
+            <option value="90">進んでいない（二次発酵 90分）</option>
+          </select>
+        </label>
+      </div>
+      <div class="settings-row" style="margin-top: 15px">
+        <button class="reset-btn" onclick="resetAll()">
+          途中の遅れ(+/-)をすべてリセット
+        </button>
+      </div>
     </div>
-    
+
     <div id="displayArea"></div>
 
     <div class="bottom-dock">
-        <button id="alarmBtn" class="floating-btn alarm-btn" onclick="toggleAlarm()">🔇 アラーム OFF</button>
-        <button class="floating-btn" onclick="scrollToCurrent()">📍 今ココへ</button>
-        <div id="realTimeClock" class="floating-clock">00:00:00</div>
+      <button
+        id="alarmBtn"
+        class="floating-btn alarm-btn"
+        onclick="toggleAlarm()"
+      >
+        🔇 アラーム OFF
+      </button>
+      <button class="floating-btn" onclick="scrollToCurrent()">
+        📍 今ココへ
+      </button>
+      <div id="realTimeClock" class="floating-clock">00:00:00</div>
     </div>
 
     <script>
-        // === データ保存・復元（オートセーブ）機能 ===
-        let delays = {};
-        
-        function loadSavedData() {
-            const savedStartTime = localStorage.getItem('bakery_startTime');
-            if (savedStartTime) document.getElementById('startTime').value = savedStartTime;
-
-            const savedOvenTime = localStorage.getItem('bakery_ovenFireTime');
-            if (savedOvenTime) document.getElementById('ovenFireTime').value = savedOvenTime;
-
-            const savedCroissantState = localStorage.getItem('bakery_croissantState');
-            if (savedCroissantState) document.getElementById('croissantState').value = savedCroissantState;
-
-            const savedDelays = localStorage.getItem('bakery_delays');
-            if (savedDelays) delays = JSON.parse(savedDelays);
-        }
-
-        function saveCurrentData() {
-            localStorage.setItem('bakery_startTime', document.getElementById('startTime').value);
-            localStorage.setItem('bakery_ovenFireTime', document.getElementById('ovenFireTime').value);
-            localStorage.setItem('bakery_croissantState', document.getElementById('croissantState').value);
-            localStorage.setItem('bakery_delays', JSON.stringify(delays));
-        }
-
-        function getDelay(id) { return delays[id] || 0; }
-        function adjustDelay(id, amount) { 
-            delays[id] = getDelay(id) + amount; 
-            update(); 
-        }
-        function resetAll() { 
-            // 誤操作防止の確認アラート
-            if(confirm("前日の記録など、途中の遅れ時間をすべてリセットしてよろしいですか？")) {
-                delays = {}; 
-                update(); 
-            }
-        }
-
-        // === アラーム・スクロール・時計機能 ===
-        let audioCtx = null; let alarmEnabled = false;
-        function initAudio() { if (!audioCtx) { const AudioContext = window.AudioContext || window.webkitAudioContext; audioCtx = new AudioContext(); } if (audioCtx.state === 'suspended') audioCtx.resume(); }
-        function toggleAlarm() { initAudio(); alarmEnabled = !alarmEnabled; const btn = document.getElementById('alarmBtn'); btn.innerText = alarmEnabled ? "🔊 アラーム ON" : "🔇 アラーム OFF"; btn.classList.toggle("active", alarmEnabled); if (alarmEnabled) playBeep(); }
-        function playBeep() { if (!alarmEnabled || !audioCtx) return; for (let i = 0; i < 3; i++) { const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain(); osc.type = "sine"; osc.frequency.setValueAtTime(880, audioCtx.currentTime + i * 0.2); gain.gain.setValueAtTime(0.5, audioCtx.currentTime + i * 0.2); gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + i * 0.2 + 0.1); osc.connect(gain); gain.connect(audioCtx.destination); osc.start(audioCtx.currentTime + i * 0.2); osc.stop(audioCtx.currentTime + i * 0.2 + 0.1); } }
-        function scrollToCurrent() { const now = new Date().getTime(); const cards = Array.from(document.querySelectorAll('.task-card')); let activeCards = cards.filter(card => now >= parseInt(card.dataset.start) && now < parseInt(card.dataset.end)); if (activeCards.length > 0) { activeCards.sort((a, b) => parseInt(b.dataset.start) - parseInt(a.dataset.start)); activeCards[0].scrollIntoView({ behavior: 'smooth', block: 'center' }); } else { let nextCard = document.querySelector('.status-next'); if (nextCard) nextCard.scrollIntoView({ behavior: 'smooth', block: 'center' }); } }
-        
-        let previousCurrentTaskId = null; 
-        function updateStatus() { const now = new Date().getTime(); const cards = Array.from(document.querySelectorAll('.task-card')); let activeCards = []; let nextCards = []; cards.forEach(card => { const start = parseInt(card.dataset.start); const end = parseInt(card.dataset.end); const badgeArea = card.querySelector('.status-badge-area'); card.classList.remove('status-past', 'status-current', 'status-next'); badgeArea.innerHTML = ''; if (now >= end) { card.classList.add('status-past'); } else if (now >= start && now < end) { card.classList.add('status-current'); badgeArea.innerHTML = '<span class="badge-current">🟢 今ココ</span>'; activeCards.push(card); } else { nextCards.push(card); } }); let currentPrimaryTaskId = null; if (activeCards.length > 0) { activeCards.sort((a, b) => parseInt(b.dataset.start) - parseInt(a.dataset.start)); currentPrimaryTaskId = activeCards[0].dataset.id; } else if (nextCards.length > 0) { nextCards.sort((a, b) => parseInt(a.dataset.start) - parseInt(b.dataset.start)); let nextStart = parseInt(nextCards[0].dataset.start); nextCards.forEach(card => { if (parseInt(card.dataset.start) === nextStart) { card.classList.add('status-next'); card.querySelector('.status-badge-area').innerHTML = '<span class="badge-next">👉 次はコレ</span>'; if (!currentPrimaryTaskId) currentPrimaryTaskId = card.dataset.id; } }); } if (currentPrimaryTaskId !== null && currentPrimaryTaskId !== previousCurrentTaskId) { if (previousCurrentTaskId !== null) playBeep(); previousCurrentTaskId = currentPrimaryTaskId; scrollToCurrent(); } }
-        function updateClock() { const now = new Date(); const h = now.getHours().toString().padStart(2, '0'); const m = now.getMinutes().toString().padStart(2, '0'); const s = now.getSeconds().toString().padStart(2, '0'); document.getElementById('realTimeClock').innerText = `${h}:${m}:${s}`; updateStatus(); }
-        setInterval(updateClock, 1000);
-
-        // === スケジュール計算 ===
-        function update() {
-            saveCurrentData(); // ★更新されるたびに必ず保存する
-
-            const startStr = document.getElementById("startTime").value;
-            const [h, m] = startStr.split(':').map(Number);
-            let startDt = new Date(); startDt.setHours(h, m, 0, 0);
-
-            let croFermentTime = parseInt(document.getElementById("croissantState").value);
-            let ovenFireDuration = parseInt(document.getElementById("ovenFireTime").value);
-            let calculatedTasks = [];
-
-            function computePrep(timeline) {
-                let currentTime = new Date(timeline.startTime);
-                let tasks = [];
-                timeline.tasks.forEach(def => {
-                    let taskStart = new Date(currentTime);
-                    let taskEnd = new Date(taskStart.getTime() + (def.duration + getDelay(def.id)) * 60000);
-                    tasks.push({ ...def, actualStartTime: taskStart, actualEndTime: taskEnd, delayAmount: getDelay(def.id) });
-                    currentTime = taskEnd;
-                });
-                return { readyTime: currentTime, tasks: tasks };
-            }
-
-            // 【窯の火入れ】
-            let kamaFireEnd = new Date(startDt.getTime() + (ovenFireDuration + getDelay("kama_fire")) * 60000);
-            calculatedTasks.push({ id: "kama_fire", group: "窯", name: "火入れ・ダンパー調整", duration: ovenFireDuration, actualStartTime: startDt, actualEndTime: kamaFireEnd, delayAmount: getDelay("kama_fire") });
-
-            // 【1陣】バゲット
-            let bagPrepDuration = 135; 
-            let bagBaseStart = new Date(kamaFireEnd.getTime() - bagPrepDuration * 60000);
-
-            let bagPrep = computePrep({ 
-                startTime: bagBaseStart, 
-                tasks: [ 
-                    { id: "bag_27", group: "バ", name: "バ 27℃へ", duration: 45, isReverseTarget: true, memo: "※窯の準備完了から逆算" }, 
-                    { id: "bag_div", group: "バ", name: "バ 分割", duration: 35 }, 
-                    { id: "bag_shape", group: "バ", name: "バ 成形 (10分)", duration: 10 }, 
-                    { id: "bag_ferm", group: "バ", name: "バ 成形完了（二次発酵 45分）", duration: 45 }
-                ] 
-            });
-            calculatedTasks.push(...bagPrep.tasks);
-
-            let batch1_Target = new Date(Math.max(kamaFireEnd.getTime(), bagPrep.readyTime.getTime()));
-            let batch1_Start = new Date(batch1_Target.getTime() + getDelay("bag_bake") * 60000);
-            calculatedTasks.push({ id: "bag_bake", group: "バ", name: "🔥 バゲット 焼成開始 (1陣)", duration: 30, isBake: true, actualStartTime: batch1_Start, actualEndTime: new Date(batch1_Start.getTime() + 30 * 60000), delayAmount: getDelay("bag_bake") });
-
-            // 【2陣】クロワッサン、ルヴァン、コンプレ
-            let batch2_Target = new Date(batch1_Start.getTime() + 30 * 60000);
-
-            let conBaseStart = new Date(batch2_Target.getTime() - 125 * 60000);
-            let conPrep = computePrep({ 
-                startTime: conBaseStart, 
-                tasks: [ 
-                    { id: "con_27", group: "コン", name: "コン 27℃へ", duration: 30, isReverseTarget: true, memo: "※2陣から逆算" }, 
-                    { id: "con_div", group: "コン", name: "コン 分割", duration: 40 }, 
-                    { id: "con_shape", group: "コン", name: "コン 成形 (10分)", duration: 10 }, 
-                    { id: "con_ferm", group: "コン", name: "コン 成形完了（二次発酵 45分）", duration: 45 } 
-                ] 
-            });
-            calculatedTasks.push(...conPrep.tasks);
-
-            let luBaseStart = new Date(batch2_Target.getTime() - 60 * 60000);
-            let luPrep = computePrep({ 
-                startTime: luBaseStart, 
-                tasks: [ { id: "lu_27", group: "ル", name: "ル 27℃へ（復温 60分）", duration: 60, isReverseTarget: true, memo: "※2陣から逆算" } ] 
-            });
-            calculatedTasks.push(...luPrep.tasks);
-
-            let cro1Prep = computePrep({ startTime: startDt, tasks: [ { id: "cro_1", group: "クロ", name: "クロ 1回目", duration: 50 }, { id: "cro_4c", group: "クロ", name: "クロ 4℃へ", duration: 10 }, { id: "cro_2", group: "クロ", name: "クロ 2回目完了", duration: 60 } ] });
-            calculatedTasks.push(...cro1Prep.tasks);
-
-            let croCutDuration = 20; let croShapeDuration = 10;
-            let croBaseStart = new Date(batch2_Target.getTime() - (croFermentTime + croShapeDuration + croCutDuration) * 60000);
-            let croRestTime = (croBaseStart.getTime() - cro1Prep.readyTime.getTime()) / 60000;
-            let croMemoStr = croRestTime < 0 ? `<span class="alert">⚠️2回目完了前に「切る」時間が来ています</span>` : `(冷蔵庫休ませ: ${croRestTime}分)`;
-
-            let cro2Prep = computePrep({ startTime: croBaseStart, tasks: [ { id: "cro_cut", group: "クロ", name: "クロ 生地を切る", duration: croCutDuration, memo: croMemoStr, isReverseTarget: true }, { id: "cro_shape", group: "クロ", name: "クロ 成形", duration: croShapeDuration }, { id: "cro_ferm", group: "クロ", name: `クロ ホイロ入る (${croFermentTime}分)`, duration: croFermentTime } ] });
-            calculatedTasks.push(...cro2Prep.tasks);
-
-            let batch2_Ready = new Date(Math.max(batch2_Target.getTime(), conPrep.readyTime.getTime(), luPrep.readyTime.getTime(), cro2Prep.readyTime.getTime()));
-            let batch2_Delay = Math.max(getDelay("con_bake"), getDelay("lu_bake"), getDelay("cro_bake"));
-            let batch2_Start = new Date(batch2_Ready.getTime() + batch2_Delay * 60000);
-
-            calculatedTasks.push({ id: "con_bake", group: "コン", name: "🔥 コン 焼成開始 (2陣)", duration: 30, isBake: true, actualStartTime: batch2_Start, actualEndTime: new Date(batch2_Start.getTime() + 30 * 60000), delayAmount: getDelay("con_bake") });
-            calculatedTasks.push({ id: "lu_bake", group: "ル", name: "🔥 ル 焼成開始 (2陣)", duration: 30, isBake: true, actualStartTime: batch2_Start, actualEndTime: new Date(batch2_Start.getTime() + 30 * 60000), delayAmount: getDelay("lu_bake") });
-            calculatedTasks.push({ id: "cro_bake", group: "クロ", name: "🔥 クロ 焼成開始 (2陣)", duration: 30, isBake: true, actualStartTime: batch2_Start, actualEndTime: new Date(batch2_Start.getTime() + 30 * 60000), delayAmount: getDelay("cro_bake") });
-
-            // 【3陣】山食、スコーン
-            let batch3_Target = new Date(batch2_Start.getTime() + 30 * 60000);
-
-            let yama27_duration = 60;
-            let yamaDiv_duration = 30;
-            let yamaDivEndTime = new Date(startDt.getTime() + (yama27_duration + getDelay("yama_27") + yamaDiv_duration + getDelay("yama_div")) * 60000);
-            
-            let yamaFerm_duration = Math.round((batch3_Target.getTime() - yamaDivEndTime.getTime()) / 60000);
-            if(yamaFerm_duration < 0) yamaFerm_duration = 0;
-
-            let yamaPrep = computePrep({ 
-                startTime: startDt, 
-                tasks: [ 
-                    { id: "yama_27", group: "山食", name: "山 27℃へ", duration: yama27_duration, memo: "※火入れと同時に開始" }, 
-                    { id: "yama_div", group: "山食", name: "山 分割・丸め", duration: yamaDiv_duration }, 
-                    { id: "yama_ferm", group: "山食", name: `山 成形完了（二次発酵 約${yamaFerm_duration}分）`, duration: yamaFerm_duration, memo: "※3陣の窯入れまで待機" } 
-                ] 
-            });
-            calculatedTasks.push(...yamaPrep.tasks);
-
-            let sconePrep = computePrep({
-                startTime: new Date(batch1_Start.getTime() + 5 * 60000),
-                tasks: [ { id: "scone_prep", group: "スコーン", name: "スコーン仕込み (2つ)", duration: 15 } ]
-            });
-            calculatedTasks.push(...sconePrep.tasks);
-
-            let batch3_Ready = new Date(Math.max(batch3_Target.getTime(), yamaPrep.readyTime.getTime(), sconePrep.readyTime.getTime()));
-            let batch3_Delay = Math.max(getDelay("yama_bake"), getDelay("scone_bake"));
-            let batch3_Start = new Date(batch3_Ready.getTime() + batch3_Delay * 60000);
-
-            calculatedTasks.push({ id: "yama_bake", group: "山食", name: "🔥 山食 焼成開始 (3陣)", duration: 30, isBake: true, actualStartTime: batch3_Start, actualEndTime: new Date(batch3_Start.getTime() + 30 * 60000), delayAmount: getDelay("yama_bake") });
-            calculatedTasks.push({ id: "scone_bake", group: "スコーン", name: "🔥 スコーン 焼成開始 (3陣)", duration: 30, isBake: true, actualStartTime: batch3_Start, actualEndTime: new Date(batch3_Start.getTime() + 30 * 60000), delayAmount: getDelay("scone_bake") });
-
-            // 描画
-            calculatedTasks.sort((a, b) => a.actualStartTime - b.actualStartTime);
-            const area = document.getElementById("displayArea"); area.innerHTML = "";
-            calculatedTasks.forEach(t => {
-                const div = document.createElement("div"); div.className = "task-card" + (t.isBake ? " highlight" : ""); div.dataset.id = t.id; div.dataset.start = t.actualStartTime.getTime(); div.dataset.end = t.actualEndTime.getTime();
-                const timeStr = t.actualStartTime.getHours().toString().padStart(2, '0') + ":" + t.actualStartTime.getMinutes().toString().padStart(2, '0');
-                const reverseBadge = t.isReverseTarget ? `<span class="reverse-tag">逆算</span>` : ''; const delayStr = t.delayAmount !== 0 ? `<span class="delay-info">${t.delayAmount > 0 ? '+' : ''}${t.delayAmount}分</span>` : '';
-                div.innerHTML = `<div class="time">${timeStr}</div><div class="status-badge-area"></div><div class="group-tag tag-${t.group}">${t.group}</div><div class="name">${t.name} ${reverseBadge} ${delayStr}${t.memo ? `<span class="memo">${t.memo}</span>` : ''}</div><div class="controls"><button onclick="adjustDelay('${t.id}', 5)">+5</button><button onclick="adjustDelay('${t.id}', -5)">-5</button></div>`; area.appendChild(div);
-            });
-            updateStatus();
-        }
-        
-        // ★起動時にデータを読み込んでから処理を開始
-        loadSavedData();
-        updateClock(); 
+      let delays = {};
+      function loadSavedData() {
+        const savedStartTime = localStorage.getItem("bakery_startTime");
+        if (savedStartTime)
+          document.getElementById("startTime").value = savedStartTime;
+        const savedOvenTime = localStorage.getItem("bakery_ovenFireTime");
+        if (savedOvenTime)
+          document.getElementById("ovenFireTime").value = savedOvenTime;
+        const savedCroissantState = localStorage.getItem(
+          "bakery_croissantState",
+        );
+        if (savedCroissantState)
+          document.getElementById("croissantState").value = savedCroissantState;
+        const savedDelays = localStorage.getItem("bakery_delays");
+        if (savedDelays) delays = JSON.parse(savedDelays);
+      }
+      function saveCurrentData() {
+        localStorage.setItem(
+          "bakery_startTime",
+          document.getElementById("startTime").value,
+        );
+        localStorage.setItem(
+          "bakery_ovenFireTime",
+          document.getElementById("ovenFireTime").value,
+        );
+        localStorage.setItem(
+          "bakery_croissantState",
+          document.getElementById("croissantState").value,
+        );
+        localStorage.setItem("bakery_delays", JSON.stringify(delays));
+      }
+      function getDelay(id) {
+        return delays[id] || 0;
+      }
+      function adjustDelay(id, amount) {
+        delays[id] = getDelay(id) + amount;
         update();
-        setTimeout(scrollToCurrent, 500); // 起動時だけ少し待ってから現在地へスクロール
+      }
+      function resetAll() {
+        if (
+          confirm(
+            "前日の記録など、途中の遅れ時間をすべてリセットしてよろしいですか？",
+          )
+        ) {
+          delays = {};
+          update();
+        }
+      }
+
+      let audioCtx = null;
+      let alarmEnabled = false;
+      function initAudio() {
+        if (!audioCtx) {
+          const AudioContext = window.AudioContext || window.webkitAudioContext;
+          audioCtx = new AudioContext();
+        }
+        if (audioCtx.state === "suspended") audioCtx.resume();
+      }
+      function toggleAlarm() {
+        initAudio();
+        alarmEnabled = !alarmEnabled;
+        const btn = document.getElementById("alarmBtn");
+        btn.innerText = alarmEnabled ? "🔊 アラーム ON" : "🔇 アラーム OFF";
+        btn.classList.toggle("active", alarmEnabled);
+        if (alarmEnabled) playBeep();
+      }
+      function playBeep() {
+        if (!alarmEnabled || !audioCtx) return;
+        for (let i = 0; i < 3; i++) {
+          const osc = audioCtx.createOscillator();
+          const gain = audioCtx.createGain();
+          osc.type = "sine";
+          osc.frequency.setValueAtTime(880, audioCtx.currentTime + i * 0.2);
+          gain.gain.setValueAtTime(0.5, audioCtx.currentTime + i * 0.2);
+          gain.gain.exponentialRampToValueAtTime(
+            0.01,
+            audioCtx.currentTime + i * 0.2 + 0.1,
+          );
+          osc.connect(gain);
+          gain.connect(audioCtx.destination);
+          osc.start(audioCtx.currentTime + i * 0.2);
+          osc.stop(audioCtx.currentTime + i * 0.2 + 0.1);
+        }
+      }
+      function scrollToCurrent() {
+        const now = new Date().getTime();
+        const cards = Array.from(document.querySelectorAll(".task-card"));
+        let activeCards = cards.filter(
+          (card) =>
+            now >= parseInt(card.dataset.start) &&
+            now < parseInt(card.dataset.end),
+        );
+        if (activeCards.length > 0) {
+          activeCards.sort(
+            (a, b) => parseInt(b.dataset.start) - parseInt(a.dataset.start),
+          );
+          activeCards[0].scrollIntoView({
+            behavior: "smooth",
+            block: "center",
+          });
+        } else {
+          let nextCard = document.querySelector(".status-next");
+          if (nextCard)
+            nextCard.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }
+      let previousCurrentTaskId = null;
+      function updateStatus() {
+        const now = new Date().getTime();
+        const cards = Array.from(document.querySelectorAll(".task-card"));
+        let activeCards = [];
+        let nextCards = [];
+        cards.forEach((card) => {
+          const start = parseInt(card.dataset.start);
+          const end = parseInt(card.dataset.end);
+          const badgeArea = card.querySelector(".status-badge-area");
+          card.classList.remove("status-past", "status-current", "status-next");
+          badgeArea.innerHTML = "";
+          if (now >= end) {
+            card.classList.add("status-past");
+          } else if (now >= start && now < end) {
+            card.classList.add("status-current");
+            badgeArea.innerHTML =
+              '<span class="badge-current">🟢 今ココ</span>';
+            activeCards.push(card);
+          } else {
+            nextCards.push(card);
+          }
+        });
+        let currentPrimaryTaskId = null;
+        if (activeCards.length > 0) {
+          activeCards.sort(
+            (a, b) => parseInt(b.dataset.start) - parseInt(a.dataset.start),
+          );
+          currentPrimaryTaskId = activeCards[0].dataset.id;
+        } else if (nextCards.length > 0) {
+          nextCards.sort(
+            (a, b) => parseInt(a.dataset.start) - parseInt(b.dataset.start),
+          );
+          let nextStart = parseInt(nextCards[0].dataset.start);
+          nextCards.forEach((card) => {
+            if (parseInt(card.dataset.start) === nextStart) {
+              card.classList.add("status-next");
+              card.querySelector(".status-badge-area").innerHTML =
+                '<span class="badge-next">👉 次はコレ</span>';
+              if (!currentPrimaryTaskId) currentPrimaryTaskId = card.dataset.id;
+            }
+          });
+        }
+        if (
+          currentPrimaryTaskId !== null &&
+          currentPrimaryTaskId !== previousCurrentTaskId
+        ) {
+          if (previousCurrentTaskId !== null) playBeep();
+          previousCurrentTaskId = currentPrimaryTaskId;
+          scrollToCurrent();
+        }
+      }
+      function updateClock() {
+        const now = new Date();
+        const h = now.getHours().toString().padStart(2, "0");
+        const m = now.getMinutes().toString().padStart(2, "0");
+        const s = now.getSeconds().toString().padStart(2, "0");
+        document.getElementById("realTimeClock").innerText = `${h}:${m}:${s}`;
+        updateStatus();
+      }
+      setInterval(updateClock, 1000);
+
+      // === スケジュール計算（独立進行モデル） ===
+      function update() {
+        saveCurrentData();
+
+        const startStr = document.getElementById("startTime").value;
+        const [h, m] = startStr.split(":").map(Number);
+        let startDt = new Date();
+        startDt.setHours(h, m, 0, 0);
+
+        let croFermentTime = parseInt(
+          document.getElementById("croissantState").value,
+        );
+        let ovenFireDuration = parseInt(
+          document.getElementById("ovenFireTime").value,
+        );
+        let calculatedTasks = [];
+
+        // タイムラインを順方向に走らせる関数
+        function runTimeline(baseStart, tasks) {
+          let currentTime = new Date(baseStart);
+          tasks.forEach((def) => {
+            let taskStart = new Date(currentTime);
+            let taskEnd = new Date(
+              taskStart.getTime() + (def.duration + getDelay(def.id)) * 60000,
+            );
+            calculatedTasks.push({
+              ...def,
+              actualStartTime: taskStart,
+              actualEndTime: taskEnd,
+              delayAmount: getDelay(def.id),
+            });
+            currentTime = taskEnd;
+          });
+          return currentTime;
+        }
+
+        // ==========================================
+        // 【理想のタイムライン（基準となる目標時間）】
+        // ==========================================
+        // 火入れは開始時間と同時にスタートし、その終了時間が1陣の窯入れ目標となります。
+        let idealBatch1 = new Date(
+          startDt.getTime() + ovenFireDuration * 60000,
+        );
+        let idealBatch2 = new Date(idealBatch1.getTime() + 30 * 60000);
+        let idealBatch3 = new Date(idealBatch2.getTime() + 30 * 60000);
+
+        // 窯のタスク（遅れが反映されるようにrunTimelineで処理）
+        runTimeline(startDt, [
+          {
+            id: "kama_fire",
+            group: "窯",
+            name: "火入れ・ダンパー調整",
+            duration: ovenFireDuration,
+            memo: "※開始時間と同時にスタート",
+          },
+        ]);
+
+        // ==========================================
+        // 【1陣】バゲット
+        // ==========================================
+        let bagPrepDuration = 45 + 35 + 10 + 45; // 135分
+        // 窯の準備完了時間にぴったり合うように逆算でスタート位置を固定
+        let bagBaseStart = new Date(
+          idealBatch1.getTime() - bagPrepDuration * 60000,
+        );
+
+        runTimeline(bagBaseStart, [
+          {
+            id: "bag_27",
+            group: "バ",
+            name: "バ 27℃へ",
+            duration: 45,
+            isReverseTarget: true,
+            memo: "※窯の準備完了時間から逆算",
+          },
+          { id: "bag_div", group: "バ", name: "バ 分割", duration: 35 },
+          {
+            id: "bag_shape",
+            group: "バ",
+            name: "バ 成形 (10分)",
+            duration: 10,
+          },
+          {
+            id: "bag_ferm",
+            group: "バ",
+            name: "バ 成形完了（二次発酵 45分）",
+            duration: 45,
+          },
+          {
+            id: "bag_bake",
+            group: "バ",
+            name: "🔥 バゲット 焼成開始 (1陣)",
+            duration: 30,
+            isBake: true,
+          },
+        ]);
+
+        // ==========================================
+        // 【2陣】コンプレ・ルヴァン・クロワッサン
+        // ==========================================
+        let conPrepDuration = 30 + 40 + 10 + 45; // 125分
+        let conBaseStart = new Date(
+          idealBatch2.getTime() - conPrepDuration * 60000,
+        );
+        runTimeline(conBaseStart, [
+          {
+            id: "con_27",
+            group: "コン",
+            name: "コン 27℃へ",
+            duration: 30,
+            isReverseTarget: true,
+            memo: "※2陣の目標から逆算",
+          },
+          { id: "con_div", group: "コン", name: "コン 分割", duration: 40 },
+          {
+            id: "con_shape",
+            group: "コン",
+            name: "コン 成形 (10分)",
+            duration: 10,
+          },
+          {
+            id: "con_ferm",
+            group: "コン",
+            name: "コン 成形完了（二次発酵 45分）",
+            duration: 45,
+          },
+          {
+            id: "con_bake",
+            group: "コン",
+            name: "🔥 コン 焼成開始 (2陣)",
+            duration: 30,
+            isBake: true,
+          },
+        ]);
+
+        let luPrepDuration = 60;
+        let luBaseStart = new Date(
+          idealBatch2.getTime() - luPrepDuration * 60000,
+        );
+        runTimeline(luBaseStart, [
+          {
+            id: "lu_27",
+            group: "ル",
+            name: "ル 27℃へ（復温 60分）",
+            duration: 60,
+            isReverseTarget: true,
+            memo: "※2陣の目標から逆算",
+          },
+          {
+            id: "lu_bake",
+            group: "ル",
+            name: "🔥 ル 焼成開始 (2陣)",
+            duration: 30,
+            isBake: true,
+          },
+        ]);
+
+        let cro1End = runTimeline(startDt, [
+          { id: "cro_1", group: "クロ", name: "クロ 1回目", duration: 50 },
+          { id: "cro_4c", group: "クロ", name: "クロ 4℃へ", duration: 10 },
+          { id: "cro_2", group: "クロ", name: "クロ 2回目完了", duration: 60 },
+        ]);
+        let croCutDuration = 20;
+        let croShapeDuration = 10;
+        let croPart2Duration =
+          croCutDuration + croShapeDuration + croFermentTime;
+        let croBaseStart = new Date(
+          idealBatch2.getTime() - croPart2Duration * 60000,
+        );
+        let croRestTime = Math.round(
+          (croBaseStart.getTime() - cro1End.getTime()) / 60000,
+        );
+        let croMemoStr =
+          croRestTime < 0
+            ? `<span class="alert">⚠️2回目完了前に「切る」時間が来ています</span>`
+            : `(冷蔵庫休ませ: ${croRestTime}分)`;
+
+        runTimeline(croBaseStart, [
+          {
+            id: "cro_cut",
+            group: "クロ",
+            name: "クロ 生地を切る",
+            duration: croCutDuration,
+            memo: croMemoStr,
+            isReverseTarget: true,
+          },
+          {
+            id: "cro_shape",
+            group: "クロ",
+            name: "クロ 成形",
+            duration: croShapeDuration,
+          },
+          {
+            id: "cro_ferm",
+            group: "クロ",
+            name: `クロ ホイロ入る (${croFermentTime}分)`,
+            duration: croFermentTime,
+          },
+          {
+            id: "cro_bake",
+            group: "クロ",
+            name: "🔥 クロ 焼成開始 (2陣)",
+            duration: 30,
+            isBake: true,
+          },
+        ]);
+
+        // ==========================================
+        // 【3陣】山食・スコーン
+        // ==========================================
+        let yama27_duration = 60;
+        let yamaDiv_duration = 30;
+        // 山食は開始時間にスタートし、理想の3陣目標までの残りを二次発酵の「目安」として設定
+        let idealYamaDivEnd = new Date(
+          startDt.getTime() + (yama27_duration + yamaDiv_duration) * 60000,
+        );
+        let idealYamaFerm = Math.round(
+          (idealBatch3.getTime() - idealYamaDivEnd.getTime()) / 60000,
+        );
+        if (idealYamaFerm < 0) idealYamaFerm = 0;
+
+        runTimeline(startDt, [
+          {
+            id: "yama_27",
+            group: "山食",
+            name: "山 27℃へ",
+            duration: yama27_duration,
+            memo: "※開始時間と同時にスタート",
+          },
+          {
+            id: "yama_div",
+            group: "山食",
+            name: "山 分割・丸め",
+            duration: yamaDiv_duration,
+          },
+          {
+            id: "yama_ferm",
+            group: "山食",
+            name: `山 成形完了（二次発酵 約${idealYamaFerm}分）`,
+            duration: idealYamaFerm,
+            memo: "※3陣基準で時間を自動設定",
+          },
+          {
+            id: "yama_bake",
+            group: "山食",
+            name: "🔥 山食 焼成開始 (3陣)",
+            duration: 30,
+            isBake: true,
+          },
+        ]);
+
+        // スコーンは「バゲットの実際の窯入れ時間」の5分後に仕込みスタート
+        let actualBagBake = calculatedTasks.find(
+          (t) => t.id === "bag_bake",
+        ).actualStartTime;
+        let sconeStart = new Date(actualBagBake.getTime() + 5 * 60000);
+
+        // 仕込み完了後、理想の3陣目標まで待機する時間を算出
+        let actualSconePrepEnd = new Date(
+          sconeStart.getTime() + (15 + getDelay("scone_prep")) * 60000,
+        );
+        let actualSconeWait = Math.round(
+          (idealBatch3.getTime() - actualSconePrepEnd.getTime()) / 60000,
+        );
+        if (actualSconeWait < 0) actualSconeWait = 0;
+
+        runTimeline(sconeStart, [
+          {
+            id: "scone_prep",
+            group: "スコーン",
+            name: "スコーン仕込み (2つ)",
+            duration: 15,
+            memo: "※バゲット窯入れの5分後",
+          },
+          {
+            id: "scone_wait",
+            group: "スコーン",
+            name: `スコーン 焼成待ち`,
+            duration: actualSconeWait,
+          },
+          {
+            id: "scone_bake",
+            group: "スコーン",
+            name: "🔥 スコーン 焼成開始 (3陣)",
+            duration: 30,
+            isBake: true,
+          },
+        ]);
+
+        // 描画
+        calculatedTasks.sort((a, b) => a.actualStartTime - b.actualStartTime);
+        const area = document.getElementById("displayArea");
+        area.innerHTML = "";
+        calculatedTasks.forEach((t) => {
+          const div = document.createElement("div");
+          div.className = "task-card" + (t.isBake ? " highlight" : "");
+          div.dataset.id = t.id;
+          div.dataset.start = t.actualStartTime.getTime();
+          div.dataset.end = t.actualEndTime.getTime();
+          const timeStr =
+            t.actualStartTime.getHours().toString().padStart(2, "0") +
+            ":" +
+            t.actualStartTime.getMinutes().toString().padStart(2, "0");
+          const reverseBadge = t.isReverseTarget
+            ? `<span class="reverse-tag">逆算</span>`
+            : "";
+          const delayStr =
+            t.delayAmount !== 0
+              ? `<span class="delay-info">${t.delayAmount > 0 ? "+" : ""}${t.delayAmount}分</span>`
+              : "";
+          div.innerHTML = `<div class="time">${timeStr}</div><div class="status-badge-area"></div><div class="group-tag tag-${t.group}">${t.group}</div><div class="name">${t.name} ${reverseBadge} ${delayStr}${t.memo ? `<span class="memo">${t.memo}</span>` : ""}</div><div class="controls"><button onclick="adjustDelay('${t.id}', 5)">+5</button><button onclick="adjustDelay('${t.id}', -5)">-5</button></div>`;
+          area.appendChild(div);
+        });
+        updateStatus();
+      }
+
+      loadSavedData();
+      updateClock();
+      update();
+      setTimeout(scrollToCurrent, 500);
     </script>
-</body>
+  </body>
 </html>
