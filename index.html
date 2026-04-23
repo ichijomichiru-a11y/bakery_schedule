@@ -312,6 +312,7 @@
     </div>
 
     <script>
+      // === データ保存・復元 ===
       let delays = {};
       function loadSavedData() {
         const savedStartTime = localStorage.getItem("bakery_startTime");
@@ -361,6 +362,7 @@
         }
       }
 
+      // === アラーム・時計 ===
       let audioCtx = null;
       let alarmEnabled = false;
       function initAudio() {
@@ -396,6 +398,8 @@
           osc.stop(audioCtx.currentTime + i * 0.2 + 0.1);
         }
       }
+
+      // ★ 手動ボタン用の滑らかなスクロール
       function scrollToCurrent() {
         const now = new Date().getTime();
         const cards = Array.from(document.querySelectorAll(".task-card"));
@@ -418,12 +422,22 @@
             nextCard.scrollIntoView({ behavior: "smooth", block: "center" });
         }
       }
+
+      // ★ ブラウザバグ対策：別のタブから戻ってきた瞬間に画面を更新・追従させる
+      document.addEventListener("visibilitychange", () => {
+        if (!document.hidden) {
+          updateClock();
+          scrollToCurrent();
+        }
+      });
+
       let previousCurrentTaskId = null;
       function updateStatus() {
         const now = new Date().getTime();
         const cards = Array.from(document.querySelectorAll(".task-card"));
         let activeCards = [];
         let nextCards = [];
+
         cards.forEach((card) => {
           const start = parseInt(card.dataset.start);
           const end = parseInt(card.dataset.end);
@@ -441,6 +455,7 @@
             nextCards.push(card);
           }
         });
+
         let currentPrimaryTaskId = null;
         if (activeCards.length > 0) {
           activeCards.sort(
@@ -461,15 +476,26 @@
             }
           });
         }
+
+        // ★ ブラウザバグ対策：裏画面にいる時は、スクロールもアラームも鳴らさない（クラッシュ防止）
         if (
           currentPrimaryTaskId !== null &&
           currentPrimaryTaskId !== previousCurrentTaskId
         ) {
-          if (previousCurrentTaskId !== null) playBeep();
+          let isFirstLoad = previousCurrentTaskId === null;
           previousCurrentTaskId = currentPrimaryTaskId;
-          scrollToCurrent();
+
+          if (!isFirstLoad && !document.hidden) {
+            playBeep();
+            // 自動追従はブラウザに負担をかけないよう一瞬で移動（smoothを使わない）
+            let target =
+              document.querySelector(".status-current") ||
+              document.querySelector(".status-next");
+            if (target) target.scrollIntoView({ block: "center" });
+          }
         }
       }
+
       function updateClock() {
         const now = new Date();
         const h = now.getHours().toString().padStart(2, "0");
@@ -480,7 +506,7 @@
       }
       setInterval(updateClock, 1000);
 
-      // === スケジュール計算（独立進行モデル） ===
+      // === スケジュール計算 ===
       function update() {
         saveCurrentData();
 
@@ -497,7 +523,6 @@
         );
         let calculatedTasks = [];
 
-        // タイムラインを順方向に走らせる関数
         function runTimeline(baseStart, tasks) {
           let currentTime = new Date(baseStart);
           tasks.forEach((def) => {
@@ -516,17 +541,12 @@
           return currentTime;
         }
 
-        // ==========================================
-        // 【理想のタイムライン（基準となる目標時間）】
-        // ==========================================
-        // 火入れは開始時間と同時にスタートし、その終了時間が1陣の窯入れ目標となります。
         let idealBatch1 = new Date(
           startDt.getTime() + ovenFireDuration * 60000,
         );
         let idealBatch2 = new Date(idealBatch1.getTime() + 30 * 60000);
         let idealBatch3 = new Date(idealBatch2.getTime() + 30 * 60000);
 
-        // 窯のタスク（遅れが反映されるようにrunTimelineで処理）
         runTimeline(startDt, [
           {
             id: "kama_fire",
@@ -537,11 +557,8 @@
           },
         ]);
 
-        // ==========================================
         // 【1陣】バゲット
-        // ==========================================
-        let bagPrepDuration = 45 + 35 + 10 + 45; // 135分
-        // 窯の準備完了時間にぴったり合うように逆算でスタート位置を固定
+        let bagPrepDuration = 45 + 35 + 10 + 45;
         let bagBaseStart = new Date(
           idealBatch1.getTime() - bagPrepDuration * 60000,
         );
@@ -577,10 +594,8 @@
           },
         ]);
 
-        // ==========================================
         // 【2陣】コンプレ・ルヴァン・クロワッサン
-        // ==========================================
-        let conPrepDuration = 30 + 40 + 10 + 45; // 125分
+        let conPrepDuration = 30 + 40 + 10 + 45;
         let conBaseStart = new Date(
           idealBatch2.getTime() - conPrepDuration * 60000,
         );
@@ -687,12 +702,9 @@
           },
         ]);
 
-        // ==========================================
         // 【3陣】山食・スコーン
-        // ==========================================
         let yama27_duration = 60;
         let yamaDiv_duration = 30;
-        // 山食は開始時間にスタートし、理想の3陣目標までの残りを二次発酵の「目安」として設定
         let idealYamaDivEnd = new Date(
           startDt.getTime() + (yama27_duration + yamaDiv_duration) * 60000,
         );
@@ -731,13 +743,11 @@
           },
         ]);
 
-        // スコーンは「バゲットの実際の窯入れ時間」の5分後に仕込みスタート
         let actualBagBake = calculatedTasks.find(
           (t) => t.id === "bag_bake",
         ).actualStartTime;
         let sconeStart = new Date(actualBagBake.getTime() + 5 * 60000);
 
-        // 仕込み完了後、理想の3陣目標まで待機する時間を算出
         let actualSconePrepEnd = new Date(
           sconeStart.getTime() + (15 + getDelay("scone_prep")) * 60000,
         );
@@ -769,7 +779,6 @@
           },
         ]);
 
-        // 描画
         calculatedTasks.sort((a, b) => a.actualStartTime - b.actualStartTime);
         const area = document.getElementById("displayArea");
         area.innerHTML = "";
