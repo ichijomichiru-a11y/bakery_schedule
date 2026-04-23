@@ -13,10 +13,7 @@
     />
     <meta name="mobile-web-app-capable" content="yes" />
 
-    <link
-      rel="manifest"
-      href="data:application/manifest+json;base64,eyJuYW1lIjoi44OR44Oz5bGL44K544Kx44K444Ol44O844OrIiwic2hvcnRfbmFtZSI6IuOCueOCseOCuOODpeODvOODqyIsImRpc3BsYXkiOiJzdGFuZGFsb25lIiwic3RhcnRfdXJsIjoiLiIsImJhY2tncm91bmRfY29sb3ciOiIjZmRmYWY0IiwidGhlbWVfY29sb3ciOiIjNWQ0MDM3IiwiaWNvbnMiOlt7InNyYyI6ImRhdGE6aW1hZ2Uvc3ZnK3htbDtiYXNlNjQsUEhOMmF5QjRiV3h1Y3owaWFIUjBjRG92TDNkM2R5NTNNeTV2Y21jdk1qQXdNQzl6ZG1jaUlIWnBaWGRDYjNnOUlqQWdNQ0F4T1RJZ01Ua3lJajQ4Y21WalRDQjNhV1IwaFBTSU1Ua3lJaUJvWldWcFoyaDBQU0l4T1RJbUlISjRQU0kwTUNJZ1ptbHNiUFJqSWpWa05EQXpOeUlnTHo0OFpHVjRkQ0I0UFNJMU1DVWlJSGs5SWpVd0pTSWdaRzl0YVc1aGJuUXRZbUZ6Wld4cGJtVTlJbU5sYm5SeVlXd2lJSFIxZUhRdFlXNWphRzl5UFNKdGFXUmtibVVpSUdadmJuUXRjMmw2WlQwaU9EQWlQdnduNDIzZU1pd2hWeE04TDNSbGVIUSs8L3N2Zz4iLCJzaXplcyI6IjE5MngxOTIiLCJ0eXBlIjoiaW1hZ2Uvc3ZnK3htbCJ9XX0="
-    />
+    <link rel="manifest" href="manifest.json" />
 
     <title>パン屋スケジュール</title>
     <style>
@@ -802,6 +799,9 @@
       updateClock();
       update();
       setTimeout(scrollToCurrent, 500);
+      if ("serviceWorker" in navigator) {
+        navigator.serviceWorker.register("./sw.js");
+      }
     </script>
   </body>
 </html>
