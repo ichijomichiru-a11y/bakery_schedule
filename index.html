@@ -11,6 +11,7 @@
       name="apple-mobile-web-app-status-bar-style"
       content="black-translucent"
     />
+    <meta name="mobile-web-app-capable" content="yes" />
     <title>パン屋スケジュール</title>
     <style>
       body {
@@ -312,7 +313,6 @@
     </div>
 
     <script>
-      // === データ保存・復元 ===
       let delays = {};
       function loadSavedData() {
         const savedStartTime = localStorage.getItem("bakery_startTime");
@@ -362,7 +362,6 @@
         }
       }
 
-      // === アラーム・時計 ===
       let audioCtx = null;
       let alarmEnabled = false;
       function initAudio() {
@@ -399,7 +398,6 @@
         }
       }
 
-      // ★ 手動ボタン用の滑らかなスクロール
       function scrollToCurrent() {
         const now = new Date().getTime();
         const cards = Array.from(document.querySelectorAll(".task-card"));
@@ -423,7 +421,6 @@
         }
       }
 
-      // ★ ブラウザバグ対策：別のタブから戻ってきた瞬間に画面を更新・追従させる
       document.addEventListener("visibilitychange", () => {
         if (!document.hidden) {
           updateClock();
@@ -437,7 +434,6 @@
         const cards = Array.from(document.querySelectorAll(".task-card"));
         let activeCards = [];
         let nextCards = [];
-
         cards.forEach((card) => {
           const start = parseInt(card.dataset.start);
           const end = parseInt(card.dataset.end);
@@ -455,7 +451,6 @@
             nextCards.push(card);
           }
         });
-
         let currentPrimaryTaskId = null;
         if (activeCards.length > 0) {
           activeCards.sort(
@@ -476,18 +471,14 @@
             }
           });
         }
-
-        // ★ ブラウザバグ対策：裏画面にいる時は、スクロールもアラームも鳴らさない（クラッシュ防止）
         if (
           currentPrimaryTaskId !== null &&
           currentPrimaryTaskId !== previousCurrentTaskId
         ) {
           let isFirstLoad = previousCurrentTaskId === null;
           previousCurrentTaskId = currentPrimaryTaskId;
-
           if (!isFirstLoad && !document.hidden) {
             playBeep();
-            // 自動追従はブラウザに負担をかけないよう一瞬で移動（smoothを使わない）
             let target =
               document.querySelector(".status-current") ||
               document.querySelector(".status-next");
@@ -506,7 +497,6 @@
       }
       setInterval(updateClock, 1000);
 
-      // === スケジュール計算 ===
       function update() {
         saveCurrentData();
 
@@ -557,7 +547,6 @@
           },
         ]);
 
-        // 【1陣】バゲット
         let bagPrepDuration = 45 + 35 + 10 + 45;
         let bagBaseStart = new Date(
           idealBatch1.getTime() - bagPrepDuration * 60000,
@@ -594,7 +583,6 @@
           },
         ]);
 
-        // 【2陣】コンプレ・ルヴァン・クロワッサン
         let conPrepDuration = 30 + 40 + 10 + 45;
         let conBaseStart = new Date(
           idealBatch2.getTime() - conPrepDuration * 60000,
@@ -702,7 +690,6 @@
           },
         ]);
 
-        // 【3陣】山食・スコーン
         let yama27_duration = 60;
         let yamaDiv_duration = 30;
         let idealYamaDivEnd = new Date(
