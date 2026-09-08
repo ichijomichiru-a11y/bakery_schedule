@@ -556,7 +556,7 @@
         });
 
         // 【1陣】バゲット
-        let bagPrepDuration = 35 + 10 + 45; // 27℃削除により計90分に
+        let bagPrepDuration = 35 + 10 + 45;
         let bagBaseStart = new Date(
           kamaFireEnd.getTime() - bagPrepDuration * 60000,
         );
@@ -631,12 +631,11 @@
         });
         calculatedTasks.push(...cro1Prep.tasks);
 
-        // 【クロワッサン後半】バ分割の5分後にスタート
+        // 【クロワッサン後半】
         let croBaseStart = new Date(actualBagDivStart.getTime() + 5 * 60000);
         let croCutDuration = 20;
         let croShapeDuration = 10;
 
-        // 待機（休ませ）時間の計算表示
         let croRestTime = Math.round(
           (croBaseStart.getTime() - cro1Prep.readyTime.getTime()) / 60000,
         );
@@ -674,7 +673,7 @@
           (t) => t.id === "cro_cut",
         ).actualStartTime;
 
-        // 【山食】クロ生地切るの5分後にスタート
+        // 【山食】
         let yamaBaseStart = new Date(actualCroCutStart.getTime() + 5 * 60000);
         let yamaPrep = computePrep({
           startTime: yamaBaseStart,
@@ -693,7 +692,7 @@
         // 【2陣】コンプレ・ルヴァン
         let batch2_Target = new Date(batch1_Start.getTime() + 30 * 60000);
 
-        let conPrepDuration = 40 + 10 + 45; // 27℃削除により計95分に
+        let conPrepDuration = 40 + 10 + 45;
         let conBaseStart = new Date(
           batch2_Target.getTime() - conPrepDuration * 60000,
         );
@@ -724,20 +723,47 @@
         });
         calculatedTasks.push(...conPrep.tasks);
 
-        let luPrepDuration = 60;
-        let luBaseStart = new Date(
-          batch2_Target.getTime() - luPrepDuration * 60000,
+        // ★修正：ルヴァン（開始時間から80分後にスタート）
+        let luBaseStart = new Date(startDt.getTime() + 80 * 60000);
+        let luDiv_duration = 60;
+        let luShape_duration = 10;
+        let expectedLuShapeEnd = new Date(
+          luBaseStart.getTime() +
+            (luDiv_duration +
+              getDelay("lu_div") +
+              luShape_duration +
+              getDelay("lu_shape")) *
+              60000,
         );
+
+        // 2陣の予定時間に合わせて二次発酵（待機）時間を自動計算
+        let luFerm_duration = Math.round(
+          (batch2_Target.getTime() - expectedLuShapeEnd.getTime()) / 60000,
+        );
+        if (luFerm_duration < 0) luFerm_duration = 0;
+
         let luPrep = computePrep({
           startTime: luBaseStart,
           tasks: [
             {
-              id: "lu_27",
+              id: "lu_div",
               group: "ル",
-              name: "ル 27℃へ（復温 60分）",
-              duration: 60,
-              isReverseTarget: true,
-              memo: "※2陣から逆算",
+              name: "ル 分割・丸め",
+              duration: luDiv_duration,
+              memo: "※開始時間から80分後",
+            },
+            {
+              id: "lu_shape",
+              group: "ル",
+              name: "ル 成形 (10分)",
+              duration: luShape_duration,
+            },
+            {
+              id: "lu_ferm",
+              group: "ル",
+              name: `ル 成形完了（二次発酵 約${luFerm_duration}分）`,
+              duration: luFerm_duration,
+              memo: "※2陣基準で時間を自動設定",
             },
           ],
         });
@@ -823,7 +849,6 @@
           batch3_Ready.getTime() + batch3_Delay * 60000,
         );
 
-        // 山食二次発酵とスコーン待ち時間の計算
         let yamaFerm_duration = Math.round(
           (batch3_Start.getTime() - yamaDivEnd.getTime()) / 60000,
         );
