@@ -269,7 +269,7 @@
       <h3>【本日の初期設定】</h3>
       <div class="settings-row">
         <label
-          >開始時間（火入れ・山食・クロ）:
+          >開始時間（火入れ・クロ）:
           <input type="time" id="startTime" value="05:30" onchange="update()"
         /></label>
       </div>
@@ -483,7 +483,6 @@
           previousCurrentTaskId = currentPrimaryTaskId;
           if (!isFirstLoad && !document.hidden) {
             playBeep();
-            // ★修正：強制的に一番上を選ぶのではなく、一番新しく始まったタスクに向かってスクロールする
             let target =
               activeCards.length > 0
                 ? activeCards[0]
@@ -521,14 +520,15 @@
         );
         let calculatedTasks = [];
 
-        function runTimeline(baseStart, tasks) {
-          let currentTime = new Date(baseStart);
-          tasks.forEach((def) => {
+        function computePrep(timeline) {
+          let currentTime = new Date(timeline.startTime);
+          let tasks = [];
+          timeline.tasks.forEach((def) => {
             let taskStart = new Date(currentTime);
             let taskEnd = new Date(
               taskStart.getTime() + (def.duration + getDelay(def.id)) * 60000,
             );
-            calculatedTasks.push({
+            tasks.push({
               ...def,
               actualStartTime: taskStart,
               actualEndTime: taskEnd,
@@ -536,244 +536,348 @@
             });
             currentTime = taskEnd;
           });
-          return currentTime;
+          return { readyTime: currentTime, tasks: tasks };
         }
 
-        let idealBatch1 = new Date(
-          startDt.getTime() + ovenFireDuration * 60000,
+        // 【窯の火入れ】
+        let kamaFireEnd = new Date(
+          startDt.getTime() +
+            (ovenFireDuration + getDelay("kama_fire")) * 60000,
         );
-        let idealBatch2 = new Date(idealBatch1.getTime() + 30 * 60000);
-        let idealBatch3 = new Date(idealBatch2.getTime() + 30 * 60000);
+        calculatedTasks.push({
+          id: "kama_fire",
+          group: "窯",
+          name: "火入れ・ダンパー調整",
+          duration: ovenFireDuration,
+          memo: "※開始時間と同時にスタート",
+          actualStartTime: startDt,
+          actualEndTime: kamaFireEnd,
+          delayAmount: getDelay("kama_fire"),
+        });
 
-        runTimeline(startDt, [
-          {
-            id: "kama_fire",
-            group: "窯",
-            name: "火入れ・ダンパー調整",
-            duration: ovenFireDuration,
-            memo: "※開始時間と同時にスタート",
-          },
-        ]);
-
-        let bagPrepDuration = 45 + 35 + 10 + 45;
+        // 【1陣】バゲット
+        let bagPrepDuration = 35 + 10 + 45; // 27℃削除により計90分に
         let bagBaseStart = new Date(
-          idealBatch1.getTime() - bagPrepDuration * 60000,
+          kamaFireEnd.getTime() - bagPrepDuration * 60000,
         );
 
-        runTimeline(bagBaseStart, [
-          {
-            id: "bag_27",
-            group: "バ",
-            name: "バ 27℃へ",
-            duration: 45,
-            isReverseTarget: true,
-            memo: "※窯の準備完了時間から逆算",
-          },
-          { id: "bag_div", group: "バ", name: "バ 分割", duration: 35 },
-          {
-            id: "bag_shape",
-            group: "バ",
-            name: "バ 成形 (10分)",
-            duration: 10,
-          },
-          {
-            id: "bag_ferm",
-            group: "バ",
-            name: "バ 成形完了（二次発酵 45分）",
-            duration: 45,
-          },
-          {
-            id: "bag_bake",
-            group: "バ",
-            name: "🔥 バゲット 焼成開始 (1陣)",
-            duration: 30,
-            isBake: true,
-          },
-        ]);
+        let bagPrep = computePrep({
+          startTime: bagBaseStart,
+          tasks: [
+            {
+              id: "bag_div",
+              group: "バ",
+              name: "バ 分割",
+              duration: 35,
+              isReverseTarget: true,
+              memo: "※窯の準備完了時間から逆算",
+            },
+            {
+              id: "bag_shape",
+              group: "バ",
+              name: "バ 成形 (10分)",
+              duration: 10,
+            },
+            {
+              id: "bag_ferm",
+              group: "バ",
+              name: "バ 成形完了（二次発酵 45分）",
+              duration: 45,
+            },
+          ],
+        });
+        calculatedTasks.push(...bagPrep.tasks);
 
-        let conPrepDuration = 30 + 40 + 10 + 45;
-        let conBaseStart = new Date(
-          idealBatch2.getTime() - conPrepDuration * 60000,
+        let actualBagDivStart = calculatedTasks.find(
+          (t) => t.id === "bag_div",
+        ).actualStartTime;
+        let batch1_Target = new Date(
+          Math.max(kamaFireEnd.getTime(), bagPrep.readyTime.getTime()),
         );
-        runTimeline(conBaseStart, [
-          {
-            id: "con_27",
-            group: "コン",
-            name: "コン 27℃へ",
-            duration: 30,
-            isReverseTarget: true,
-            memo: "※2陣の目標から逆算",
-          },
-          { id: "con_div", group: "コン", name: "コン 分割", duration: 40 },
-          {
-            id: "con_shape",
-            group: "コン",
-            name: "コン 成形 (10分)",
-            duration: 10,
-          },
-          {
-            id: "con_ferm",
-            group: "コン",
-            name: "コン 成形完了（二次発酵 45分）",
-            duration: 45,
-          },
-          {
-            id: "con_bake",
-            group: "コン",
-            name: "🔥 コン 焼成開始 (2陣)",
-            duration: 30,
-            isBake: true,
-          },
-        ]);
-
-        let luPrepDuration = 60;
-        let luBaseStart = new Date(
-          idealBatch2.getTime() - luPrepDuration * 60000,
+        let batch1_Start = new Date(
+          batch1_Target.getTime() + getDelay("bag_bake") * 60000,
         );
-        runTimeline(luBaseStart, [
-          {
-            id: "lu_27",
-            group: "ル",
-            name: "ル 27℃へ（復温 60分）",
-            duration: 60,
-            isReverseTarget: true,
-            memo: "※2陣の目標から逆算",
-          },
-          {
-            id: "lu_bake",
-            group: "ル",
-            name: "🔥 ル 焼成開始 (2陣)",
-            duration: 30,
-            isBake: true,
-          },
-        ]);
+        calculatedTasks.push({
+          id: "bag_bake",
+          group: "バ",
+          name: "🔥 バゲット 焼成開始 (1陣)",
+          duration: 30,
+          isBake: true,
+          actualStartTime: batch1_Start,
+          actualEndTime: new Date(batch1_Start.getTime() + 30 * 60000),
+          delayAmount: getDelay("bag_bake"),
+        });
 
-        let cro1End = runTimeline(startDt, [
-          { id: "cro_1", group: "クロ", name: "クロ 1回目", duration: 50 },
-          { id: "cro_4c", group: "クロ", name: "クロ 4℃へ", duration: 10 },
-          { id: "cro_2", group: "クロ", name: "クロ 2回目完了", duration: 60 },
-        ]);
+        // 【クロワッサン前半】
+        let cro1Prep = computePrep({
+          startTime: startDt,
+          tasks: [
+            { id: "cro_1", group: "クロ", name: "クロ 1回目", duration: 20 },
+            {
+              id: "cro_freeze1",
+              group: "クロ",
+              name: "クロ 冷凍",
+              duration: 15,
+            },
+            { id: "cro_2", group: "クロ", name: "クロ 2回目", duration: 20 },
+            {
+              id: "cro_freeze2",
+              group: "クロ",
+              name: "クロ 冷凍",
+              duration: 0,
+              memo: "※後半作業（切る）まで待機",
+            },
+          ],
+        });
+        calculatedTasks.push(...cro1Prep.tasks);
+
+        // 【クロワッサン後半】バ分割の5分後にスタート
+        let croBaseStart = new Date(actualBagDivStart.getTime() + 5 * 60000);
         let croCutDuration = 20;
         let croShapeDuration = 10;
-        let croPart2Duration =
-          croCutDuration + croShapeDuration + croFermentTime;
-        let croBaseStart = new Date(
-          idealBatch2.getTime() - croPart2Duration * 60000,
-        );
+
+        // 待機（休ませ）時間の計算表示
         let croRestTime = Math.round(
-          (croBaseStart.getTime() - cro1End.getTime()) / 60000,
+          (croBaseStart.getTime() - cro1Prep.readyTime.getTime()) / 60000,
         );
         let croMemoStr =
           croRestTime < 0
-            ? `<span class="alert">⚠️2回目完了前に「切る」時間が来ています</span>`
-            : `(冷蔵庫休ませ: ${croRestTime}分)`;
+            ? `<span class="alert">⚠️冷凍前に「切る」時間が来ています</span>`
+            : `(冷凍庫休ませ: ${croRestTime}分)`;
 
-        runTimeline(croBaseStart, [
-          {
-            id: "cro_cut",
-            group: "クロ",
-            name: "クロ 生地を切る",
-            duration: croCutDuration,
-            memo: croMemoStr,
-            isReverseTarget: true,
-          },
-          {
-            id: "cro_shape",
-            group: "クロ",
-            name: "クロ 成形",
-            duration: croShapeDuration,
-          },
-          {
-            id: "cro_ferm",
-            group: "クロ",
-            name: `クロ ホイロ入る (${croFermentTime}分)`,
-            duration: croFermentTime,
-          },
-          {
-            id: "cro_bake",
-            group: "クロ",
-            name: "🔥 クロ 焼成開始 (2陣)",
-            duration: 30,
-            isBake: true,
-          },
-        ]);
-
-        let yama27_duration = 60;
-        let yamaDiv_duration = 30;
-        let idealYamaDivEnd = new Date(
-          startDt.getTime() + (yama27_duration + yamaDiv_duration) * 60000,
-        );
-        let idealYamaFerm = Math.round(
-          (idealBatch3.getTime() - idealYamaDivEnd.getTime()) / 60000,
-        );
-        if (idealYamaFerm < 0) idealYamaFerm = 0;
-
-        runTimeline(startDt, [
-          {
-            id: "yama_27",
-            group: "山食",
-            name: "山 27℃へ",
-            duration: yama27_duration,
-            memo: "※開始時間と同時にスタート",
-          },
-          {
-            id: "yama_div",
-            group: "山食",
-            name: "山 分割・丸め",
-            duration: yamaDiv_duration,
-          },
-          {
-            id: "yama_ferm",
-            group: "山食",
-            name: `山 成形完了（二次発酵 約${idealYamaFerm}分）`,
-            duration: idealYamaFerm,
-            memo: "※3陣基準で時間を自動設定",
-          },
-          {
-            id: "yama_bake",
-            group: "山食",
-            name: "🔥 山食 焼成開始 (3陣)",
-            duration: 30,
-            isBake: true,
-          },
-        ]);
-
-        let actualBagBake = calculatedTasks.find(
-          (t) => t.id === "bag_bake",
+        let cro2Prep = computePrep({
+          startTime: croBaseStart,
+          tasks: [
+            {
+              id: "cro_cut",
+              group: "クロ",
+              name: "クロ 生地を切る",
+              duration: croCutDuration,
+              memo: croMemoStr,
+            },
+            {
+              id: "cro_shape",
+              group: "クロ",
+              name: "クロ 成形",
+              duration: croShapeDuration,
+            },
+            {
+              id: "cro_ferm",
+              group: "クロ",
+              name: `クロ ホイロ入る (${croFermentTime}分)`,
+              duration: croFermentTime,
+            },
+          ],
+        });
+        calculatedTasks.push(...cro2Prep.tasks);
+        let actualCroCutStart = calculatedTasks.find(
+          (t) => t.id === "cro_cut",
         ).actualStartTime;
-        let sconeStart = new Date(actualBagBake.getTime() + 5 * 60000);
 
-        let actualSconePrepEnd = new Date(
-          sconeStart.getTime() + (15 + getDelay("scone_prep")) * 60000,
+        // 【山食】クロ生地切るの5分後にスタート
+        let yamaBaseStart = new Date(actualCroCutStart.getTime() + 5 * 60000);
+        let yamaPrep = computePrep({
+          startTime: yamaBaseStart,
+          tasks: [
+            {
+              id: "yama_div",
+              group: "山食",
+              name: "山 分割・丸め",
+              duration: 30,
+            },
+          ],
+        });
+        calculatedTasks.push(...yamaPrep.tasks);
+        let yamaDivEnd = yamaPrep.readyTime;
+
+        // 【2陣】コンプレ・ルヴァン
+        let batch2_Target = new Date(batch1_Start.getTime() + 30 * 60000);
+
+        let conPrepDuration = 40 + 10 + 45; // 27℃削除により計95分に
+        let conBaseStart = new Date(
+          batch2_Target.getTime() - conPrepDuration * 60000,
         );
-        let actualSconeWait = Math.round(
-          (idealBatch3.getTime() - actualSconePrepEnd.getTime()) / 60000,
+        let conPrep = computePrep({
+          startTime: conBaseStart,
+          tasks: [
+            {
+              id: "con_div",
+              group: "コン",
+              name: "コン 分割",
+              duration: 40,
+              isReverseTarget: true,
+              memo: "※2陣から逆算",
+            },
+            {
+              id: "con_shape",
+              group: "コン",
+              name: "コン 成形 (10分)",
+              duration: 10,
+            },
+            {
+              id: "con_ferm",
+              group: "コン",
+              name: "コン 成形完了（二次発酵 45分）",
+              duration: 45,
+            },
+          ],
+        });
+        calculatedTasks.push(...conPrep.tasks);
+
+        let luPrepDuration = 60;
+        let luBaseStart = new Date(
+          batch2_Target.getTime() - luPrepDuration * 60000,
         );
-        if (actualSconeWait < 0) actualSconeWait = 0;
+        let luPrep = computePrep({
+          startTime: luBaseStart,
+          tasks: [
+            {
+              id: "lu_27",
+              group: "ル",
+              name: "ル 27℃へ（復温 60分）",
+              duration: 60,
+              isReverseTarget: true,
+              memo: "※2陣から逆算",
+            },
+          ],
+        });
+        calculatedTasks.push(...luPrep.tasks);
 
-        runTimeline(sconeStart, [
-          {
-            id: "scone_prep",
-            group: "スコーン",
-            name: "スコーン仕込み (2つ)",
-            duration: 15,
-            memo: "※バゲット窯入れの5分後",
-          },
-          {
-            id: "scone_wait",
-            group: "スコーン",
-            name: `スコーン 焼成待ち`,
-            duration: actualSconeWait,
-          },
-          {
-            id: "scone_bake",
-            group: "スコーン",
-            name: "🔥 スコーン 焼成開始 (3陣)",
-            duration: 30,
-            isBake: true,
-          },
-        ]);
+        let batch2_Ready = new Date(
+          Math.max(
+            batch2_Target.getTime(),
+            conPrep.readyTime.getTime(),
+            luPrep.readyTime.getTime(),
+            cro2Prep.readyTime.getTime(),
+          ),
+        );
+        let batch2_Delay = Math.max(
+          getDelay("con_bake"),
+          getDelay("lu_bake"),
+          getDelay("cro_bake"),
+        );
+        let batch2_Start = new Date(
+          batch2_Ready.getTime() + batch2_Delay * 60000,
+        );
 
+        calculatedTasks.push({
+          id: "con_bake",
+          group: "コン",
+          name: "🔥 コン 焼成開始 (2陣)",
+          duration: 30,
+          isBake: true,
+          actualStartTime: batch2_Start,
+          actualEndTime: new Date(batch2_Start.getTime() + 30 * 60000),
+          delayAmount: getDelay("con_bake"),
+        });
+        calculatedTasks.push({
+          id: "lu_bake",
+          group: "ル",
+          name: "🔥 ル 焼成開始 (2陣)",
+          duration: 30,
+          isBake: true,
+          actualStartTime: batch2_Start,
+          actualEndTime: new Date(batch2_Start.getTime() + 30 * 60000),
+          delayAmount: getDelay("lu_bake"),
+        });
+        calculatedTasks.push({
+          id: "cro_bake",
+          group: "クロ",
+          name: "🔥 クロ 焼成開始 (2陣)",
+          duration: 30,
+          isBake: true,
+          actualStartTime: batch2_Start,
+          actualEndTime: new Date(batch2_Start.getTime() + 30 * 60000),
+          delayAmount: getDelay("cro_bake"),
+        });
+
+        // 【3陣】山食、スコーン
+        let sconeStart = new Date(batch1_Start.getTime() + 5 * 60000);
+        let sconePrep = computePrep({
+          startTime: sconeStart,
+          tasks: [
+            {
+              id: "scone_prep",
+              group: "スコーン",
+              name: "スコーン仕込み (2つ)",
+              duration: 15,
+              memo: "※バゲット窯入れの5分後",
+            },
+          ],
+        });
+        calculatedTasks.push(...sconePrep.tasks);
+
+        let batch3_Target = new Date(batch2_Start.getTime() + 30 * 60000);
+        let batch3_Ready = new Date(
+          Math.max(
+            batch3_Target.getTime(),
+            yamaDivEnd.getTime(),
+            sconePrep.readyTime.getTime(),
+          ),
+        );
+        let batch3_Delay = Math.max(
+          getDelay("yama_bake"),
+          getDelay("scone_bake"),
+        );
+        let batch3_Start = new Date(
+          batch3_Ready.getTime() + batch3_Delay * 60000,
+        );
+
+        // 山食二次発酵とスコーン待ち時間の計算
+        let yamaFerm_duration = Math.round(
+          (batch3_Start.getTime() - yamaDivEnd.getTime()) / 60000,
+        );
+        if (yamaFerm_duration < 0) yamaFerm_duration = 0;
+        calculatedTasks.push({
+          id: "yama_ferm",
+          group: "山食",
+          name: `山 成形完了（二次発酵 約${yamaFerm_duration}分）`,
+          duration: yamaFerm_duration,
+          actualStartTime: yamaDivEnd,
+          actualEndTime: new Date(
+            yamaDivEnd.getTime() + yamaFerm_duration * 60000,
+          ),
+          delayAmount: 0,
+        });
+
+        let sconeWait_duration = Math.round(
+          (batch3_Start.getTime() - sconePrep.readyTime.getTime()) / 60000,
+        );
+        if (sconeWait_duration < 0) sconeWait_duration = 0;
+        calculatedTasks.push({
+          id: "scone_wait",
+          group: "スコーン",
+          name: `スコーン 焼成待ち`,
+          duration: sconeWait_duration,
+          actualStartTime: sconePrep.readyTime,
+          actualEndTime: new Date(
+            sconePrep.readyTime.getTime() + sconeWait_duration * 60000,
+          ),
+          delayAmount: 0,
+        });
+
+        calculatedTasks.push({
+          id: "yama_bake",
+          group: "山食",
+          name: "🔥 山食 焼成開始 (3陣)",
+          duration: 30,
+          isBake: true,
+          actualStartTime: batch3_Start,
+          actualEndTime: new Date(batch3_Start.getTime() + 30 * 60000),
+          delayAmount: getDelay("yama_bake"),
+        });
+        calculatedTasks.push({
+          id: "scone_bake",
+          group: "スコーン",
+          name: "🔥 スコーン 焼成開始 (3陣)",
+          duration: 30,
+          isBake: true,
+          actualStartTime: batch3_Start,
+          actualEndTime: new Date(batch3_Start.getTime() + 30 * 60000),
+          delayAmount: getDelay("scone_bake"),
+        });
+
+        // 描画
         calculatedTasks.sort((a, b) => a.actualStartTime - b.actualStartTime);
         const area = document.getElementById("displayArea");
         area.innerHTML = "";
